@@ -1,6 +1,6 @@
 module Main where
 
-import Data.Sequence
+import Data.Sequence as S
 import Data.List as L
 import Debug.Trace
 import Control.Concurrent
