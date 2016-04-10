@@ -59,7 +59,7 @@ executable textEditor
   -- Other library packages from which modules are imported.
   build-depends:       base >=4.0 && <4.10,
                        containers,
-                       monad-loops
+                       unix
 
   
   -- Directories containing source files.
