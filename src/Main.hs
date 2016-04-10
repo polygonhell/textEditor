@@ -5,6 +5,7 @@ import Data.List as L
 import Debug.Trace
 import Control.Concurrent
 
+import Keys
 import TextBuffer
 import TTYRender
 import View
@@ -17,16 +18,14 @@ multiLineBuffer = Buffer multiLineContent (Cursor 2 5 2)
 initialViewState = ViewState 0 0 100 10
 
 
-updateBuffer:: String -> Buffer -> Buffer
+updateBuffer:: Keys -> Buffer -> Buffer
 updateBuffer k b = b' where
    b' = case k of 
-    "Up" -> cursorUp b
-    "Down" -> cursorDown b
-    "Left" -> cursorLeft b
-    "Right" -> cursorRight b
+    CursorUp -> cursorUp b
+    CursorDown -> cursorDown b
+    CursorLeft -> cursorLeft b
+    CursorRight -> cursorRight b
     _ -> b
-
-
 
 loop :: Buffer -> ViewState -> IO()
 loop b v = do 
@@ -41,6 +40,4 @@ loop b v = do
 main :: IO ()
 main = do
   initTTY
-  -- draw initialViewState multiLineBuffer
-  -- threadDelay (10*1000000)
   loop multiLineBuffer initialViewState

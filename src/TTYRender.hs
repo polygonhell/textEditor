@@ -12,6 +12,7 @@ import Text.Printf
 
 import TextBuffer
 import View
+import Keys
 
 
 drawLines :: Int -> Int -> BufferContent -> IO ()
@@ -45,15 +46,15 @@ resetTopAndBottom :: String
 resetTopAndBottom = printf "%c[r" (toEnum 27 :: Char) 
 
 
-readKeys :: IO String
+readKeys :: IO Keys
 readKeys = do
   (str, bytes) <- fdRead stdInput 3 
   return $ case str of
-    "\ESC[A" -> "Up"
-    "\ESC[B" -> "Down"
-    "\ESC[C" -> "Right"
-    "\ESC[D" -> "Left"
-    _ -> "ow"
+    "\ESC[A" -> CursorUp
+    "\ESC[B" -> CursorDown
+    "\ESC[C" -> CursorRight
+    "\ESC[D" -> CursorLeft
+    _ -> UnknownKey
 
 
 initTTY :: IO ()
@@ -67,7 +68,6 @@ initTTY = do
     -- flip withMinInput vmin         $ -- wait for >= vmin bytes per read
 
   setTerminalAttributes stdInput newTermSettings Immediately
-
   -- application `finally` setTerminalAttributes stdInput oldTermSettings Immediately
   
   putStrLn "Inited" 
@@ -82,14 +82,10 @@ draw ViewState{..} b@Buffer{..} = do
   putStr $ toPos 0 0
   drawLines left width buffSlice 
 
-  -- putStr $ toPos 0 0
-  -- putStr (concat $ L.replicate 3 revIndex )
   let cursorX = col cursor - left + 1
       cursorY = line cursor - top + 1
   putStr $ toPos cursorY cursorX
-  -- putStr $ toPos 0 0
   hFlush stdout
-  -- threadDelay $ 10 * 1000000
 
 
 
