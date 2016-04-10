@@ -1,6 +1,7 @@
 module Main where
 
 import Data.Sequence
+import Data.List as L
 import Debug.Trace
 import Control.Concurrent
 
@@ -10,9 +11,9 @@ import View
 
 
 multiLineContent :: BufferContent
-multiLineContent = fromList ["This is a test", "Dogs and Cats Living Together", "Purple rain falling", "Complete drivel", "And another line to act as a test", "short line"]
+multiLineContent =  fromList $ concat $ L.replicate 10 ["This is a test", "Dogs and Cats Living Together", "Purple rain falling", "Complete drivel", "And another line to act as a test", "short line"]
 
-multiLineBuffer = Buffer multiLineContent (Cursor 0 5 2)
+multiLineBuffer = Buffer multiLineContent (Cursor 2 5 2)
 initialViewState = ViewState 0 0 100 10
 
 
@@ -32,8 +33,9 @@ loop b v = do
   -- print b
   key <- readKeys
   let b' = updateBuffer key b
-  draw v b'
-  loop b' v
+  let v' = scrollView b' v
+  draw v' b'
+  loop b' v'
 
 
 main :: IO ()
