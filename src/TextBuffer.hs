@@ -47,14 +47,24 @@ endOfLine b@Buffer{..} = b{cursor = cursor{col = pos, preferredCol = pos}} where
 
 -- Cursor Motion
 cursorLeft :: Buffer -> Buffer
+cursorLeft b@Buffer{..} | col == 0 && line /= 0 = b' where 
+  Cursor{..} = cursor
+  b' = endOfLine $ b {cursor = cursor{line = line - 1}}
+cursorLeft b@Buffer{..} | col == 0 = b where 
+  Cursor{..} = cursor
 cursorLeft b@Buffer{..} = setCursorColumn pos b where 
   Cursor{..} = cursor
-  pos = max 0 (col-1)
+  pos = col-1
 
 cursorRight :: Buffer -> Buffer
+cursorRight b@Buffer{..} | (col == curLineLength b) && line /= (S.length content - 1) = b' where
+  Cursor{..} = cursor
+  b' = startOfLine $ b {cursor = cursor{line = line + 1}}
+cursorRight b@Buffer{..} | col == curLineLength b = b where 
+  Cursor{..} = cursor
 cursorRight b@Buffer{..} = setCursorColumn pos b where 
   Cursor{..} = cursor
-  pos = min (curLineLength b) (col+1)
+  pos = col+1
 
 cursorUp :: Buffer -> Buffer
 cursorUp b@Buffer{..} = b{cursor = cursor'} where 
