@@ -60,6 +60,7 @@ readKeys = do
     "\ESC[B" -> CursorDown
     "\ESC[C" -> CursorRight
     "\ESC[D" -> CursorLeft
+    "\008" -> Backspace
     "\n" -> CarriageReturn
     [a] | alpha a -> Alpha a
     _ -> UnknownKey

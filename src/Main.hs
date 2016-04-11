@@ -22,6 +22,7 @@ updateBuffer:: Keys -> Buffer -> Buffer
 updateBuffer k b = b' where
    b' = case k of 
     Alpha x -> insertCharacter x b
+    Backspace -> insertCharacter 'A' b
     CarriageReturn -> breakLine b
     CursorUp -> cursorUp b
     CursorDown -> cursorDown b

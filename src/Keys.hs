@@ -6,5 +6,6 @@ data Keys = CursorRight
           | CursorDown
           | Alpha Char
           | CarriageReturn
+          | Backspace
           | UnknownKey
 
