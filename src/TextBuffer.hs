@@ -70,4 +70,20 @@ cursorDown b@Buffer{..} = b{cursor = cursor'} where
   newCol = min (lineLength newLine b) preferredCol
   cursor' = cursor{line = newLine, col = newCol}
 
+insertCharacter :: Char -> Buffer -> Buffer
+insertCharacter c b@Buffer{..} = cursorRight b{content = content'} where
+  Cursor{..} = cursor
+  ln = index content line
+  (l, r) = L.splitAt col ln
+  ln' = l ++ (c:r)
+  content' = update line ln' content
+
+breakLine :: Buffer -> Buffer
+breakLine b@Buffer{..} = b{content = content', cursor = cursor'} where
+  Cursor{..} = cursor
+  ln = index content line
+  (l, r) = L.splitAt col ln
+  (s, e) = S.splitAt line content
+  content' = (s |> l |> r) >< S.drop 1 e
+  cursor' = cursor{line = line + 1, col = 0, preferredCol = 0}
 

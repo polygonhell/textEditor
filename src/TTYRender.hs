@@ -3,12 +3,14 @@ module TTYRender where
 
 import Control.Concurrent
 import Data.Foldable
+import Data.Char
 import Data.List as L
 import Data.Sequence as S
 import System.IO
 import System.Posix.IO (fdRead, stdInput, stdOutput)
 import System.Posix.Terminal
 import Text.Printf
+import Debug.Trace
 
 import TextBuffer
 import View
@@ -47,6 +49,9 @@ resetTopAndBottom :: String
 resetTopAndBottom = printf "%c[r" (toEnum 27 :: Char) 
 
 
+alpha :: Char -> Bool
+alpha x = isAlphaNum x || x == ' ' 
+
 readKeys :: IO Keys
 readKeys = do
   (str, bytes) <- fdRead stdInput 3 
@@ -55,6 +60,8 @@ readKeys = do
     "\ESC[B" -> CursorDown
     "\ESC[C" -> CursorRight
     "\ESC[D" -> CursorLeft
+    "\n" -> CarriageReturn
+    [a] | alpha a -> Alpha a
     _ -> UnknownKey
 
 

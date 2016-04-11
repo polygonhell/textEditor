@@ -4,5 +4,7 @@ data Keys = CursorRight
           | CursorLeft
           | CursorUp
           | CursorDown
+          | Alpha Char
+          | CarriageReturn
           | UnknownKey
 
