@@ -60,7 +60,7 @@ readKeys = do
     "\ESC[B" -> CursorDown
     "\ESC[C" -> CursorRight
     "\ESC[D" -> CursorLeft
-    "\008" -> Backspace
+    "\x7f" -> Backspace  -- Delete key on OSX Keyboard
     "\n" -> CarriageReturn
     [a] | alpha a -> Alpha a
     _ -> UnknownKey

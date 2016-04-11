@@ -73,17 +73,36 @@ cursorDown b@Buffer{..} = b{cursor = cursor'} where
 insertCharacter :: Char -> Buffer -> Buffer
 insertCharacter c b@Buffer{..} = cursorRight b{content = content'} where
   Cursor{..} = cursor
-  ln = index content line
-  (l, r) = L.splitAt col ln
+  (l, r) = L.splitAt col $ index content line
   ln' = l ++ (c:r)
   content' = update line ln' content
 
 breakLine :: Buffer -> Buffer
 breakLine b@Buffer{..} = b{content = content', cursor = cursor'} where
   Cursor{..} = cursor
-  ln = index content line
   (l, r) = L.splitAt col ln
   (s, e) = S.splitAt line content
-  content' = (s |> l |> r) >< S.drop 1 e
+  ln :< eResid = viewl e
+  content' = (s |> l |> r) >< eResid
   cursor' = cursor{line = line + 1, col = 0, preferredCol = 0}
+
+unbreakLine :: Buffer -> Buffer
+unbreakLine b@Buffer{..} = b{content = content', cursor = cursor'} where
+  Cursor{..} = cursor
+  (s, e) = S.splitAt line content
+  (s' :> ln1) = viewr s
+  (ln2 :< e') = viewl e
+  content' = (s' |> (ln1 ++ ln2)) >< e'
+  cursor' = cursor {col = L.length ln1, line = line - 1, preferredCol = L.length ln1}
+
+  
+deleteCharacter :: Buffer -> Buffer
+deleteCharacter b@Buffer{..} | col cursor == 0 && not (isFirstLine b) = unbreakLine b
+deleteCharacter b@Buffer{..} | col cursor == 0 = b
+deleteCharacter b@Buffer{..} = cursorLeft b{ content = content' } where
+  Cursor{..} = cursor
+  (l, r) = L.splitAt col $ index content line
+  ln' = L.take (L.length l - 1) l ++ r
+  content' = update line ln' content
+
 
