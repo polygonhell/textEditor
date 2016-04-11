@@ -20,7 +20,8 @@ drawLines _ _ b | b == S.empty = return ()
 drawLines leftCol width b = do
   let h :< t = viewl b
       line = L.take width $ L.drop leftCol h
-      str = printf "%s\n" line :: String
+      padding = L.replicate (width - L.length line) ' '
+      str = printf "%s%s\n" line padding :: String
   putStr str
   drawLines leftCol width t
 
@@ -76,7 +77,7 @@ draw :: ViewState -> Buffer -> IO ()
 draw ViewState{..} b@Buffer{..} = do 
 
   let buffSlice = S.take height $ S.drop top content
-  putStr cls
+  -- putStr cls
   -- putStr $ setTopAndBottom 0 5
   putStr resetTopAndBottom
   putStr $ toPos 0 0
