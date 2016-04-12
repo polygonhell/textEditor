@@ -15,18 +15,10 @@ import TTYRender
 import View
 
 
-
-
-initialViewState :: ViewState
-initialViewState = ViewState 0 0 40 10
-
-
 loadFile :: String -> IO BufferContent
 loadFile fname = do
   text <- T.readFile fname
   return $ fromList $ T.lines text
-
-
 
 
 updateBuffer:: Keys -> Buffer -> Buffer

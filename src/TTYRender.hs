@@ -18,6 +18,11 @@ import View
 import Keys
 
 
+-- TODO this needs state for the following
+-- TODO hide the cursor during update
+-- TODO use the cosoles scroll functionality
+-- TODO only redraw changed lines
+
 drawLines :: Int -> Int -> BufferContent -> IO ()
 drawLines _ _ b | b == S.empty = return ()
 drawLines leftCol width b = do
