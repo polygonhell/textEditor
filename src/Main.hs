@@ -1,10 +1,12 @@
 module Main where
 
-import Data.Sequence as S
-import Data.List as L
-import Data.Text as T
-import Debug.Trace
 import Control.Concurrent
+import Data.List as L
+import Data.Sequence as S
+import Data.Text as T
+import Data.Text.IO as T
+import Debug.Trace
+import System.Environment
 
 import Keys
 import TextBuffer
@@ -13,12 +15,16 @@ import View
 
 
 
-
-multiLineContent :: BufferContent
-multiLineContent =  fromList $ L.concat $ L.replicate 10 $ L.map pack ["This is a test", "Dogs and Cats Living Together, this is a longer line", "Purple rain falling", "Complete drivel", "And another line to act as a test", "short line"]
-
-multiLineBuffer = Buffer multiLineContent (Cursor 2 5 2)
+initialViewState :: ViewState
 initialViewState = ViewState 0 0 40 10
+
+
+loadFile :: String -> IO BufferContent
+loadFile fname = do
+  text <- T.readFile fname
+  return $ fromList $ T.lines text
+
+
 
 
 updateBuffer:: Keys -> Buffer -> Buffer
@@ -45,5 +51,8 @@ loop b v = do
 
 main :: IO ()
 main = do
+  [inputFile] <- getArgs
+  content <- loadFile inputFile
+  let buffer = Buffer content (Cursor 0 0 0)
   initTTY
-  loop multiLineBuffer initialViewState
+  loop buffer initialViewState
