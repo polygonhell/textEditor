@@ -35,25 +35,25 @@ drawLines leftCol width b = do
   drawLines leftCol width t
 
 cls :: String
-cls = printf "%c[2J" (toEnum 27 :: Char)
+cls = printf "\27[2J"
 
 toPos :: Int -> Int -> String
-toPos = printf "%c[%d;%dH" (toEnum 27 :: Char)
+toPos = printf "\27[%d;%dH"
 
 index :: String
-index = printf "%cD" (toEnum 27 :: Char)
+index = printf "\27D"
 
 revIndex :: String
-revIndex = printf "%cM" (toEnum 27 :: Char)
+revIndex = printf "\27M"
 
 smoothScroll :: String
-smoothScroll = printf "%c[?4h" (toEnum 27 :: Char)
+smoothScroll = printf "\27[?4h"
 
 setTopAndBottom :: Int -> Int -> String
-setTopAndBottom = printf "%c[%d;%dr" (toEnum 27 :: Char) 
+setTopAndBottom = printf "\27[%d;%dr"
 
 resetTopAndBottom :: String
-resetTopAndBottom = printf "%c[r" (toEnum 27 :: Char) 
+resetTopAndBottom = printf "\27[r"
 
 
 alpha :: Char -> Bool
@@ -85,7 +85,6 @@ initTTY = do
 
   setTerminalAttributes stdInput newTermSettings Immediately
   -- application `finally` setTerminalAttributes stdInput oldTermSettings Immediately
-  
   putStrLn "Inited" 
 
 draw :: ViewState -> Buffer -> IO ()
