@@ -41,7 +41,6 @@ updateBuffer k b = b' where
 
 loop :: Buffer -> ViewState -> IO()
 loop b v = do 
-  -- print b
   key <- readKeys
   let b' = updateBuffer key b
   let v' = scrollView b' v

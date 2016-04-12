@@ -2,15 +2,15 @@
 module TTYRender where
 
 import Control.Concurrent
-import Data.Foldable
 import Data.Char
-import Data.Text as T
+import Data.Foldable
 import Data.Sequence as S
+import Data.Text as T
+import Debug.Trace
 import System.IO
 import System.Posix.IO (fdRead, stdInput, stdOutput)
 import System.Posix.Terminal
 import Text.Printf
-import Debug.Trace
 
 import TextBuffer
 import View
