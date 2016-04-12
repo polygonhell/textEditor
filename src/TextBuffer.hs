@@ -2,7 +2,7 @@
 module TextBuffer where
 
 import Data.Sequence as S
-import Data.List as L
+import Data.Text as T
 import Data.Char
 import Data.Maybe
 import Debug.Trace
@@ -11,7 +11,7 @@ data Cursor = Cursor { preferredCol :: Int
                      , line :: Int
                      , col :: Int
                      } deriving (Show)
-type Line = String
+type Line = Text
 type BufferContent = Seq Line
  
 data Buffer = Buffer { content  :: BufferContent
@@ -27,7 +27,7 @@ isLastLine :: Buffer -> Bool
 isLastLine Buffer{..} = line cursor == S.length content - 1
 
 lineLength :: Int -> Buffer -> Int
-lineLength line Buffer{..} = L.length (index content line)
+lineLength line Buffer{..} = T.length (S.index content line)
 
 curLineLength :: Buffer -> Int
 curLineLength b@Buffer{..} = lineLength (line cursor) b
@@ -83,14 +83,14 @@ cursorDown b@Buffer{..} = b{cursor = cursor'} where
 insertCharacter :: Char -> Buffer -> Buffer
 insertCharacter c b@Buffer{..} = cursorRight b{content = content'} where
   Cursor{..} = cursor
-  (l, r) = L.splitAt col $ index content line
-  ln' = l ++ (c:r)
+  (l, r) = T.splitAt col $ S.index content line
+  ln' = l `append` (c `cons` r)
   content' = update line ln' content
 
 breakLine :: Buffer -> Buffer
 breakLine b@Buffer{..} = b{content = content', cursor = cursor'} where
   Cursor{..} = cursor
-  (l, r) = L.splitAt col ln
+  (l, r) = T.splitAt col ln
   (s, e) = S.splitAt line content
   ln :< eResid = viewl e
   content' = (s |> l |> r) >< eResid
@@ -102,8 +102,8 @@ unbreakLine b@Buffer{..} = b{content = content', cursor = cursor'} where
   (s, e) = S.splitAt line content
   (s' :> ln1) = viewr s
   (ln2 :< e') = viewl e
-  content' = (s' |> (ln1 ++ ln2)) >< e'
-  cursor' = cursor {col = L.length ln1, line = line - 1, preferredCol = L.length ln1}
+  content' = (s' |> (ln1 `append` ln2)) >< e'
+  cursor' = cursor {col = T.length ln1, line = line - 1, preferredCol = T.length ln1}
 
   
 deleteCharacter :: Buffer -> Buffer
@@ -111,8 +111,8 @@ deleteCharacter b@Buffer{..} | col cursor == 0 && not (isFirstLine b) = unbreakL
 deleteCharacter b@Buffer{..} | col cursor == 0 = b
 deleteCharacter b@Buffer{..} = cursorLeft b{ content = content' } where
   Cursor{..} = cursor
-  (l, r) = L.splitAt col $ index content line
-  ln' = L.take (L.length l - 1) l ++ r
+  (l, r) = T.splitAt col $ S.index content line
+  ln' = T.take (T.length l - 1) l `append` r
   content' = update line ln' content
 
 

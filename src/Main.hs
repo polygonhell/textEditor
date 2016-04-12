@@ -2,6 +2,7 @@ module Main where
 
 import Data.Sequence as S
 import Data.List as L
+import Data.Text as T
 import Debug.Trace
 import Control.Concurrent
 
@@ -11,8 +12,10 @@ import TTYRender
 import View
 
 
+
+
 multiLineContent :: BufferContent
-multiLineContent =  fromList $ concat $ L.replicate 10 ["This is a test", "Dogs and Cats Living Together, this is a longer line", "Purple rain falling", "Complete drivel", "And another line to act as a test", "short line"]
+multiLineContent =  fromList $ L.concat $ L.replicate 10 $ L.map pack ["This is a test", "Dogs and Cats Living Together, this is a longer line", "Purple rain falling", "Complete drivel", "And another line to act as a test", "short line"]
 
 multiLineBuffer = Buffer multiLineContent (Cursor 2 5 2)
 initialViewState = ViewState 0 0 40 10

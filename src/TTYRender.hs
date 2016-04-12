@@ -4,7 +4,7 @@ module TTYRender where
 import Control.Concurrent
 import Data.Foldable
 import Data.Char
-import Data.List as L
+import Data.Text as T
 import Data.Sequence as S
 import System.IO
 import System.Posix.IO (fdRead, stdInput, stdOutput)
@@ -21,8 +21,8 @@ drawLines :: Int -> Int -> BufferContent -> IO ()
 drawLines _ _ b | b == S.empty = return ()
 drawLines leftCol width b = do
   let h :< t = viewl b
-      line = L.take width $ L.drop leftCol h
-      padding = L.replicate (width - L.length line) ' '
+      line = T.take width $ T.drop leftCol h
+      padding = T.replicate (width - T.length line) $ T.singleton ' '
       str = printf "%s%s\n" line padding :: String
   putStr str
   drawLines leftCol width t
