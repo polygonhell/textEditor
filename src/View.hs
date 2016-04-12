@@ -11,7 +11,7 @@ data ViewState = ViewState { top    :: Int
 
 
 newTop :: Int -> Int -> Int -> Int
-newTop top height row | row >= top + height = row -height +1
+newTop top height row | row >= top + height = row - height + 1
 newTop top _ row | row < top = row 
 newTop top _ _  = top 
 
