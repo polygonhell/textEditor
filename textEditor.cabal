@@ -60,7 +60,8 @@ executable textEditor
   build-depends:       base >=4.0 && <4.10,
                        containers,
                        unix,
-                       text
+                       text,
+                       terminal-size
 
   
   -- Directories containing source files.

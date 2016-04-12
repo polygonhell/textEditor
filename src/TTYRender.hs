@@ -2,6 +2,7 @@
 module TTYRender where
 
 import Control.Concurrent
+import Control.Monad
 import Data.Char
 import Data.Foldable
 import Data.Sequence as S
@@ -23,8 +24,9 @@ drawLines leftCol width b = do
   let h :< t = viewl b
       line = T.take width $ T.drop leftCol h
       padding = T.replicate (width - T.length line) $ T.singleton ' '
-      str = printf "%s%s\n" line padding :: String
+      str = printf "%s%s" line padding :: String
   putStr str
+  when (t /= S.empty) $ putStr "\n"
   drawLines leftCol width t
 
 cls :: String

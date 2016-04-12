@@ -6,12 +6,14 @@ import Data.Sequence as S
 import Data.Text as T
 import Data.Text.IO as T
 import Debug.Trace
+import qualified System.Console.Terminal.Size  as TS
 import System.Environment
 
 import Keys
 import TextBuffer
 import TTYRender
 import View
+
 
 
 
@@ -50,8 +52,12 @@ loop b v = do
 
 main :: IO ()
 main = do
+  env <- getEnvironment
+  Just sz <- TS.size
+  print env
   [inputFile] <- getArgs
   content <- loadFile inputFile
   let buffer = Buffer content (Cursor 0 0 0)
+      view = ViewState 0 0 (TS.width sz) (TS.height sz)
   initTTY
-  loop buffer initialViewState
+  loop buffer view
