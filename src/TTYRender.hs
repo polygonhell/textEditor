@@ -62,8 +62,8 @@ showCursor :: String
 showCursor = "\ESC[?25h"
 
 
-alpha :: Char -> Bool
-alpha x = isAlphaNum x || x == ' ' 
+printable :: Char -> Bool
+printable x = (fromEnum x :: Int) >= 0x20
 
 readKeys :: IO Keys
 readKeys = do
@@ -75,7 +75,7 @@ readKeys = do
     "\ESC[D" -> CursorLeft
     "\x7f" -> Backspace  -- Delete key on OSX Keyboard
     "\n" -> CarriageReturn
-    [a] | alpha a -> Alpha a
+    [a] | printable a -> Alpha a
     _ -> UnknownKey
 
 
