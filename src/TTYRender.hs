@@ -35,25 +35,31 @@ drawLines leftCol width b = do
   drawLines leftCol width t
 
 cls :: String
-cls = printf "\27[2J"
+cls = "\27[2J"
 
 toPos :: Int -> Int -> String
 toPos = printf "\27[%d;%dH"
 
 index :: String
-index = printf "\27D"
+index = "\27D"
 
 revIndex :: String
-revIndex = printf "\27M"
+revIndex = "\27M"
 
 smoothScroll :: String
-smoothScroll = printf "\27[?4h"
+smoothScroll = "\27[?4h"
 
 setTopAndBottom :: Int -> Int -> String
 setTopAndBottom = printf "\27[%d;%dr"
 
 resetTopAndBottom :: String
-resetTopAndBottom = printf "\27[r"
+resetTopAndBottom = "\27[r"
+
+hideCursor :: String
+hideCursor = "\27[?25l"
+
+showCursor :: String
+showCursor = "\27[?25h"
 
 
 alpha :: Char -> Bool
@@ -94,12 +100,14 @@ draw ViewState{..} b@Buffer{..} = do
   -- putStr cls
   -- putStr $ setTopAndBottom 0 5
   putStr resetTopAndBottom
+  putStr hideCursor
   putStr $ toPos 0 0
   drawLines left width buffSlice 
 
   let cursorX = col cursor - left + 1
       cursorY = line cursor - top + 1
   putStr $ toPos cursorY cursorX
+  putStr showCursor
   hFlush stdout
 
 
