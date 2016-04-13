@@ -35,31 +35,31 @@ drawLines leftCol width b = do
   drawLines leftCol width t
 
 cls :: String
-cls = "\27[2J"
+cls = "\ESC[2J"
 
 toPos :: Int -> Int -> String
-toPos = printf "\27[%d;%dH"
+toPos = printf "\ESC[%d;%dH"
 
 index :: String
-index = "\27D"
+index = "\ESCD"
 
 revIndex :: String
-revIndex = "\27M"
+revIndex = "\ESCM"
 
 smoothScroll :: String
-smoothScroll = "\27[?4h"
+smoothScroll = "\ESC[?4h"
 
 setTopAndBottom :: Int -> Int -> String
-setTopAndBottom = printf "\27[%d;%dr"
+setTopAndBottom = printf "\ESC[%d;%dr"
 
 resetTopAndBottom :: String
-resetTopAndBottom = "\27[r"
+resetTopAndBottom = "\ESC[r"
 
 hideCursor :: String
-hideCursor = "\27[?25l"
+hideCursor = "\ESC[?25l"
 
 showCursor :: String
-showCursor = "\27[?25h"
+showCursor = "\ESC[?25h"
 
 
 alpha :: Char -> Bool
