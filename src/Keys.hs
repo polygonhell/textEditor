@@ -7,5 +7,7 @@ data Keys = CursorRight
           | Alpha Char
           | CarriageReturn
           | Backspace
+          | Home
+          | End
           | UnknownKey
 

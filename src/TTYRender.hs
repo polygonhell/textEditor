@@ -73,10 +73,12 @@ readKeys = do
     "\ESC[B" -> CursorDown
     "\ESC[C" -> CursorRight
     "\ESC[D" -> CursorLeft
+    "\ESC[F" -> End
+    "\ESC[H" -> Home
     "\x7f" -> Backspace  -- Delete key on OSX Keyboard
     "\n" -> CarriageReturn
     [a] | printable a -> Alpha a
-    _ -> UnknownKey
+    _ -> trace ("Keys pressed -- " ++ str) UnknownKey
 
 
 initTTY :: IO ()

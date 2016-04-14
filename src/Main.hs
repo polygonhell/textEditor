@@ -31,6 +31,8 @@ updateBuffer k b = b' where
     CursorDown -> cursorDown b
     CursorLeft -> cursorLeft b
     CursorRight -> cursorRight b
+    End -> endOfLine b
+    Home -> startOfLine b
     _ -> b
 
 loop :: Buffer -> ViewState -> IO()
