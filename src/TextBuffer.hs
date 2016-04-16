@@ -3,19 +3,36 @@ module TextBuffer where
 
 import Data.Sequence as S
 import Data.Text as T
+import Data.Foldable as F
 import Data.Char
 import Data.Maybe
 import Debug.Trace
+import Text.Printf
+
 
 data Cursor = Cursor { preferredCol :: Int
                      , line :: Int
                      , col :: Int
                      } deriving (Show)
+
+data RegionStyle = Selected
+                    | Comment deriving (Show)
+
+data Region = Region { startOffset :: Int
+                     , endOffset :: Int
+                     , style :: RegionStyle
+                     , test :: (Int, Int)
+                     , test2 :: (Int, Int)
+                     } deriving (Show)
+
+type Selection = Region
+
 type Line = Text
 type BufferContent = Seq Line
  
 data Buffer = Buffer { content  :: BufferContent
                      , cursor  :: Cursor 
+                     , selection :: [Selection]
                      } deriving (Show)
 
 
@@ -31,6 +48,21 @@ lineLength line Buffer{..} = T.length (S.index content line)
 
 curLineLength :: Buffer -> Int
 curLineLength b@Buffer{..} = lineLength (line cursor) b
+
+offsetToPos :: Buffer -> Int -> (Int, Int)
+offsetToPos b offset | offset <= lineLength 0 b = (0, offset)
+offsetToPos b@Buffer{..} offset = out  where 
+  length = lineLength 0 b
+  (line, off) = offsetToPos b{content = S.drop 1 content} (offset - (length + 1))
+  out = (line + 1, off)
+
+
+
+posToOffset :: Buffer -> Int -> Int -> Int
+posToOffset b@Buffer{..} line col = lineOffset + col where
+  bSlice = S.take line content
+  lineOffset = F.foldl fn 0 bSlice
+  fn x y = x + T.length y + 1
 
 -- Navigation
 setCursorColumn :: Int -> Buffer -> Buffer

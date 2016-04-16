@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module Main where
 
 import Control.Concurrent
@@ -8,6 +9,7 @@ import Data.Text.IO as T
 import Debug.Trace
 import qualified System.Console.Terminal.Size  as TS
 import System.Environment
+import Prelude as P
 
 import Keys
 import TextBuffer
@@ -21,7 +23,17 @@ loadFile fname = do
   return $ fromList $ T.lines text
 
 
-updateBuffer:: Keys -> Buffer -> Buffer
+updateSelection :: Buffer -> Buffer
+updateSelection b@Buffer{..} = b' where
+  [s@Region{..}] = selection
+  offset = posToOffset b (line cursor) (col cursor)
+  p' = offsetToPos b offset
+  s' = s{endOffset = offset, test = (line cursor, col cursor), test2 = p'}
+  b' = b{selection = [s']}
+
+
+
+updateBuffer :: Keys -> Buffer -> Buffer
 updateBuffer k b = b' where
    b' = case k of 
     Alpha x -> insertCharacter x b
@@ -38,8 +50,9 @@ updateBuffer k b = b' where
 loop :: Buffer -> ViewState -> IO()
 loop b v = do 
   key <- readKeys
-  let b' = updateBuffer key b
+  let b' = updateSelection $ updateBuffer key b
   let v' = scrollView b' v
+  P.putStr (toPos 30 0 ++  show (selection b'))
   draw v' b'
   loop b' v'
 
@@ -51,7 +64,10 @@ main = do
   print env
   [inputFile] <- getArgs
   content <- loadFile inputFile
-  let buffer = Buffer content (Cursor 0 0 0)
-      view = ViewState 0 0 (TS.width sz) (TS.height sz)
+  let buffer' = Buffer content (Cursor 0 0 0) []
+      offset = posToOffset buffer' 5 5
+      selection = [Region (posToOffset buffer' 0 0) offset Selected (offsetToPos buffer offset) (0,0)]
+      buffer = Buffer content (Cursor 0 0 0) selection
+      view = ViewState 0 0 (TS.width sz) 20 -- (TS.height sz)
   initTTY
   loop buffer view
