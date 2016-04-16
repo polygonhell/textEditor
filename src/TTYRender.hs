@@ -6,12 +6,15 @@ import Control.Monad
 import Data.Char
 import Data.Foldable
 import Data.Sequence as S
+import Data.List as L
+import Data.Map as M
 import Data.Text as T
 import Debug.Trace
 import System.IO
 import System.Posix.IO (fdRead, stdInput, stdOutput)
 import System.Posix.Terminal
 import Text.Printf
+import Prelude as P
 
 import TextBuffer
 import View
@@ -19,20 +22,72 @@ import Keys
 
 
 -- TODO this needs state for the following
--- TODO hide the cursor during update
 -- TODO use the cosoles scroll functionality
 -- TODO only redraw changed lines
 
-drawLines :: Int -> Int -> BufferContent -> IO ()
-drawLines _ _ b | b == S.empty = return ()
-drawLines leftCol width b = do
-  let h :< t = viewl b
-      line = T.take width $ T.drop leftCol h
-      padding = T.replicate (width - T.length line) $ T.singleton ' '
-      str = printf "%s%s" line padding :: String
-  putStr str
-  when (t /= S.empty) $ putStr "\n"
-  drawLines leftCol width t
+styleMapping :: Map RegionStyle String
+styleMapping = M.fromList [(Normal, normal), (Selected, inverted)]
+
+
+
+lastPosOnScreen :: ViewState -> Buffer -> Int
+lastPosOnScreen v@ViewState{..} b@Buffer{..} = lastLineEnd where
+  endLine = top + height-1
+  lastLineStart = posToOffset b endLine 0
+  lastLineEnd = lastLineStart + lineLength endLine b 
+
+getSortedRegions :: Int -> ViewState -> Buffer -> [Region] -> [Region]
+getSortedRegions pos v b [] | pos < lastPosOnScreen v b= [Region pos (lastPosOnScreen v b) Normal]
+getSortedRegions pos v b [] = []
+getSortedRegions pos v b _ | pos > lastPosOnScreen v b = []
+getSortedRegions pos v b (r@Region{..}:rs)  | pos < startOffset = rs' where
+  maxPos = lastPosOnScreen v b
+  rEnd = min maxPos (startOffset-1)
+  rs' = Region pos rEnd Normal : getSortedRegions startOffset v b (r:rs)
+getSortedRegions pos v b (r@Region{..}:rs)  | pos >= startOffset = rs' where
+  maxPos = lastPosOnScreen v b
+  rEnd = min maxPos endOffset
+  rs' = Region pos rEnd style : getSortedRegions (endOffset+1) v b rs
+
+getRegions :: ViewState -> Buffer -> [Region]
+getRegions v@ViewState{..} b@Buffer{..} = getSortedRegions initialPos v b regions where
+  initialPos = posToOffset b top 0
+  regions' = L.sortOn startOffset selection
+  regions = L.dropWhile fn regions'
+  fn x = (endOffset x) < initialPos
+
+
+drawLine :: Int -> Line -> [Region] -> IO [Region]
+drawLine _ _ [] = return []
+drawLine _ line rs | line == T.empty = return rs 
+drawLine o l (r@Region{..}:rs) | o > endOffset = drawLine o l rs  
+--drawLine o l (r@Region{..}:rs) | o < startOffset = drawLine o l rs  
+drawLine o line (r@Region{..}:rs) | o + T.length line < endOffset = do
+  let prefix = styleMapping ! style
+  putStr prefix
+  putStr $ unpack line
+  return $ r:rs
+drawLine o l (r@Region{..}:rs) = do
+  let prefix = styleMapping ! style
+  let (p, l') = T.splitAt (endOffset - o) l 
+  putStr prefix
+  putStr $ unpack p
+  drawLine (endOffset+1) l' rs
+
+   
+drawLines :: ViewState -> Int -> Buffer -> [Region] -> IO ()
+drawLines v@ViewState{..} lNum _ _ | lNum == height - 1 = return ()
+drawLines v@ViewState{..} lNum b@Buffer{..} rs = do
+  let l = lNum + top
+      h = S.index content l 
+      offset = posToOffset b l 0
+      line = T.take width $ T.drop left h
+      padding = L.replicate (width - T.length line) ' '
+
+  rs' <- drawLine offset h rs
+  putStr padding
+  when (lNum /= height - 1) $ putStr "\n"
+  drawLines v (lNum+1) b rs'
 
 cls :: String
 cls = "\ESC[2J"
@@ -61,9 +116,15 @@ hideCursor = "\ESC[?25l"
 showCursor :: String
 showCursor = "\ESC[?25h"
 
-
 printable :: Char -> Bool
 printable x = (fromEnum x :: Int) >= 0x20
+
+normal :: String
+normal = "\ESC[0m"
+
+inverted :: String
+inverted = "\ESC[7m"
+
 
 readKeys :: IO Keys
 readKeys = do
@@ -83,6 +144,7 @@ readKeys = do
 
 initTTY :: IO ()
 initTTY = do 
+  putStr cls
   oldTermSettings <- getTerminalAttributes stdInput
   {- modify settings -}
   let newTermSettings = flip withoutMode  EnableEcho   . -- don't echo keystrokes
@@ -96,18 +158,24 @@ initTTY = do
   putStrLn "Inited" 
 
 draw :: ViewState -> Buffer -> IO ()
-draw ViewState{..} b@Buffer{..} = do 
+draw v@ViewState{..} b@Buffer{..} = do 
 
-  let buffSlice = S.take height $ S.drop top content
+  --let buffSlice = S.take height $ S.drop top content
   -- putStr cls
   -- putStr $ setTopAndBottom 0 5
+  let regions = getRegions v b
   putStr resetTopAndBottom
   putStr hideCursor
   putStr $ toPos 0 0
-  drawLines left width buffSlice 
+  drawLines v 0 b regions
 
-  let cursorX = col cursor - left + 1
-      cursorY = line cursor - top + 1
+  let Cursor {..} = cursor
+      cursorX = col - left + 1
+      cursorY = line - top + 1
+
+  
+  putStr $ toPos 32 0 ++ (show (getRegions v b))
+  putStr $ toPos 34 0 ++ (printf "Line: %-3d Col: %-3d (%d)" line col (posToOffset b line col))
   putStr $ toPos cursorY cursorX
   putStr showCursor
   hFlush stdout

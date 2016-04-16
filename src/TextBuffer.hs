@@ -15,14 +15,13 @@ data Cursor = Cursor { preferredCol :: Int
                      , col :: Int
                      } deriving (Show)
 
-data RegionStyle = Selected
-                    | Comment deriving (Show)
+data RegionStyle = Normal 
+                 | Selected
+                 | Comment deriving (Show, Eq, Ord)
 
 data Region = Region { startOffset :: Int
                      , endOffset :: Int
                      , style :: RegionStyle
-                     , test :: (Int, Int)
-                     , test2 :: (Int, Int)
                      } deriving (Show)
 
 type Selection = Region
