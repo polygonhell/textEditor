@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+-- {-# LANGUAGE RecordWildCards #-}
 module Main where
 
 import Control.Concurrent
@@ -35,12 +35,13 @@ updateBuffer k b = b' where
     CursorRight -> cursorRight b
     End -> endOfLine b
     Home -> startOfLine b
+    Ctrl 'a' -> startSelection b
     _ -> b
 
 loop :: Buffer -> ViewState -> IO()
 loop b v = do 
   key <- readKeys
-  let b' = updateBuffer key b
+  let b' = updateSelection $ updateBuffer key b
   let v' = scrollView b' v
   P.putStr (toPos 30 0 ++  show (selection b'))
   draw v' b'
@@ -56,7 +57,7 @@ main = do
   content <- loadFile inputFile
   let buffer' = Buffer content (Cursor 0 0 0) [] []
       offset = posToOffset buffer' 5 5
-      selection = [Region (posToOffset buffer' 4 5) offset Selected]
+      selection = []
       regions = [Region (posToOffset buffer' 7 7) (posToOffset buffer' 7 19) Comment]
       buffer = Buffer content (Cursor 0 0 0) selection regions
       view = ViewState 0 0 (TS.width sz) 20 -- (TS.height sz)

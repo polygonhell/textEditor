@@ -57,7 +57,6 @@ offsetToPos b@Buffer{..} offset = out  where
   out = (line + 1, off)
 
 
-
 posToOffset :: Buffer -> Int -> Int -> Int
 posToOffset b@Buffer{..} line col = lineOffset + col where
   bSlice = S.take line content
@@ -147,4 +146,18 @@ deleteCharacter b@Buffer{..} = cursorLeft b{ content = content' } where
   ln' = T.take (T.length l - 1) l `append` r
   content' = update line ln' content
 
+clearSelection :: Buffer -> Buffer
+clearSelection b@Buffer{..} = b{selection = []}
 
+startSelection :: Buffer -> Buffer
+startSelection b@Buffer{..} = b{selection = [Region cpos cpos Selected]} where
+  Cursor{..} = cursor
+  cpos = posToOffset b line col
+
+updateSelection b@Buffer{..} | F.null selection = b  
+updateSelection b@Buffer{..} = b{selection = [Region minPos maxPos Selected]} where  
+  Cursor{..} = cursor
+  Region{..}:rs = selection
+  cpos = posToOffset b line col
+  minPos = min cpos startOffset
+  maxPos = max cpos endOffset

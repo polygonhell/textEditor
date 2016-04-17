@@ -9,5 +9,6 @@ data Keys = CursorRight
           | Backspace
           | Home
           | End
+          | Ctrl Char
           | UnknownKey
 

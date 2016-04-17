@@ -54,7 +54,7 @@ getRegions v@ViewState{..} b@Buffer{..} = getSortedRegions initialPos v b regs w
   initialPos = posToOffset b top 0
   regs' = L.sortOn startOffset (selection ++ regions) -- TODO deal with selection overlap
   regs = L.dropWhile fn regs'
-  fn x = (endOffset x) < initialPos
+  fn x = endOffset x < initialPos
 
 
 drawLine :: Int -> Line -> [Region] -> IO [Region]
@@ -76,7 +76,7 @@ drawLine o l (r@Region{..}:rs) = do
 
    
 drawLines :: ViewState -> Int -> Buffer -> [Region] -> IO ()
-drawLines v@ViewState{..} lNum _ _ | lNum == height - 1 = return ()
+drawLines v@ViewState{..} lNum _ _ | lNum == height = return ()
 drawLines v@ViewState{..} lNum b@Buffer{..} rs = do
   let l = lNum + top
       h = S.index content l 
@@ -126,7 +126,18 @@ inverted :: String
 inverted = "\ESC[7m"
 
 grey :: String
-grey = "\ESC[38;5;245m"
+grey = "\ESC[38;5;220m"
+
+
+printKey :: Char -> String
+printKey c = str where
+  i = fromEnum c
+  str = printf "%d " i
+
+printKeys :: String -> String
+printKeys = foldMap printKey 
+
+
 
 readKeys :: IO Keys
 readKeys = do
@@ -141,7 +152,8 @@ readKeys = do
     "\x7f" -> Backspace  -- Delete key on OSX Keyboard
     "\n" -> CarriageReturn
     [a] | printable a -> Alpha a
-    _ -> trace ("Keys pressed -- " ++ str) UnknownKey
+    [a] | a <= '\26' -> Ctrl $ toEnum ((fromEnum 'a' :: Int) + (fromEnum a - 1))
+    a -> trace (toPos 36 0 ++ "[ " ++ printKeys a ++ " ]") UnknownKey
 
 
 initTTY :: IO ()
@@ -176,8 +188,8 @@ draw v@ViewState{..} b@Buffer{..} = do
       cursorY = line - top + 1
 
   
-  putStr $ toPos 32 0 ++ (show (getRegions v b))
-  putStr $ toPos 34 0 ++ (printf "Line: %-3d Col: %-3d (%d)" line col (posToOffset b line col))
+  putStr $ toPos 32 0 ++ show (getRegions v b)
+  putStr $ toPos 34 0 ++ printf "Line: %-3d Col: %-3d (%d)" line col (posToOffset b line col)
   putStr $ toPos cursorY cursorX
   putStr showCursor
   hFlush stdout
