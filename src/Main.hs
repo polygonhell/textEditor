@@ -1,4 +1,4 @@
--- {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards #-}
 module Main where
 
 import Control.Concurrent
@@ -24,10 +24,11 @@ loadFile fname = do
 
 
 updateBuffer :: Keys -> Buffer -> Buffer
-updateBuffer k b = b' where
+updateBuffer k b@Buffer{..} = b' where
    b' = case k of 
     Alpha x -> insertCharacter x b
-    Backspace -> deleteCharacter b
+    Backspace | P.null selection -> deleteCharacter b
+    Backspace -> deleteSelection b
     CarriageReturn -> breakLine b
     CursorUp -> cursorUp b
     CursorDown -> cursorDown b

@@ -49,10 +49,19 @@ getSortedRegions pos v b (r@Region{..}:rs)  | pos >= startOffset = rs' where
   rEnd = min maxPos endOffset
   rs' = Region pos rEnd style : getSortedRegions (endOffset+1) v b rs
 
+
+orderOffsets :: Region -> Region
+orderOffsets r@Region{..} = r{startOffset = so, endOffset = eo} where
+  so = min startOffset endOffset
+  eo = max startOffset endOffset
+  
+
 getRegions :: ViewState -> Buffer -> [Region]
 getRegions v@ViewState{..} b@Buffer{..} = getSortedRegions initialPos v b regs where
   initialPos = posToOffset b top 0
-  regs' = L.sortOn startOffset (selection ++ regions) -- TODO deal with selection overlap
+  -- Selection region has offsets that are not ordered
+  selection' = P.map orderOffsets selection
+  regs' = L.sortOn startOffset (selection' ++ regions) -- TODO deal with selection overlap
   regs = L.dropWhile fn regs'
   fn x = endOffset x < initialPos
 

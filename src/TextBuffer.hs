@@ -8,7 +8,7 @@ import Data.Char
 import Data.Maybe
 import Debug.Trace
 import Text.Printf
-
+import Prelude as P
 
 data Cursor = Cursor { preferredCol :: Int
                      , line :: Int
@@ -146,6 +146,7 @@ deleteCharacter b@Buffer{..} = cursorLeft b{ content = content' } where
   ln' = T.take (T.length l - 1) l `append` r
   content' = update line ln' content
 
+
 clearSelection :: Buffer -> Buffer
 clearSelection b@Buffer{..} = b{selection = []}
 
@@ -154,10 +155,23 @@ startSelection b@Buffer{..} = b{selection = [Region cpos cpos Selected]} where
   Cursor{..} = cursor
   cpos = posToOffset b line col
 
+
 updateSelection b@Buffer{..} | F.null selection = b  
-updateSelection b@Buffer{..} = b{selection = [Region minPos maxPos Selected]} where  
+updateSelection b@Buffer{..} = b{selection = selection'} where  
   Cursor{..} = cursor
-  Region{..}:rs = selection
   cpos = posToOffset b line col
-  minPos = min cpos startOffset
-  maxPos = max cpos endOffset
+  selection' = P.map (\x -> x{endOffset = cpos}) selection
+
+deleteSelection b@Buffer{..} | F.null selection = b 
+deleteSelection b@Buffer{..} = b' where
+  [s@Region{..}] = selection  
+  Cursor{..} = cursor
+  (minLine, minCol) = offsetToPos b $ min startOffset endOffset 
+  (maxLine, maxCol) = offsetToPos b $ max startOffset endOffset
+  (before, rem) = S.splitAt minLine content
+  (selLine, after) = S.splitAt (maxLine - minLine + 1) rem
+  (fl :< _) = viewl selLine
+  (_ :> ll) = viewr selLine
+  lineOut = (T.take minCol fl) `T.append` (T.drop maxCol ll)
+  cursor' = cursor{line = minLine, col = minCol, preferredCol = minCol}
+  b' = b{selection = [], content = (before |> lineOut) >< after, cursor = cursor'}
