@@ -197,7 +197,7 @@ draw v@ViewState{..} b@Buffer{..} = do
       cursorY = line - top + 1
 
   
-  putStr $ toPos 32 0 ++ show (getRegions v b)
+  putStr $ toPos 32 0 ++ show (getRegions v b) ++ "               "
   putStr $ toPos 34 0 ++ printf "Line: %-3d Col: %-3d (%d)" line col (posToOffset b line col)
   putStr $ toPos cursorY cursorX
   putStr showCursor

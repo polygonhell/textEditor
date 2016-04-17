@@ -112,15 +112,17 @@ cursorDown b@Buffer{..} = b{cursor = cursor'} where
   cursor' = cursor{line = newLine, col = newCol}
 
 insertCharacter :: Char -> Buffer -> Buffer
-insertCharacter c b@Buffer{..} = cursorRight b{content = content'} where
+insertCharacter c b@Buffer{..} = updateRegions cpos 1 (cursorRight b{content = content'}) where
   Cursor{..} = cursor
+  cpos = posToOffset b line col
   (l, r) = T.splitAt col $ S.index content line
   ln' = l `append` (c `cons` r)
   content' = update line ln' content
 
 breakLine :: Buffer -> Buffer
-breakLine b@Buffer{..} = b{content = content', cursor = cursor'} where
+breakLine b@Buffer{..} = updateRegions cpos 1 b{content = content', cursor = cursor'} where
   Cursor{..} = cursor
+  cpos = posToOffset b line col
   (l, r) = T.splitAt col ln
   (s, e) = S.splitAt line content
   ln :< eResid = viewl e
@@ -128,8 +130,9 @@ breakLine b@Buffer{..} = b{content = content', cursor = cursor'} where
   cursor' = cursor{line = line + 1, col = 0, preferredCol = 0}
 
 unbreakLine :: Buffer -> Buffer
-unbreakLine b@Buffer{..} = b{content = content', cursor = cursor'} where
+unbreakLine b@Buffer{..} = updateRegions (cpos-1) (-1) b{content = content', cursor = cursor'} where
   Cursor{..} = cursor
+  cpos = posToOffset b line col
   (s, e) = S.splitAt line content
   (s' :> ln1) = viewr s
   (ln2 :< e') = viewl e
@@ -140,8 +143,9 @@ unbreakLine b@Buffer{..} = b{content = content', cursor = cursor'} where
 deleteCharacter :: Buffer -> Buffer
 deleteCharacter b@Buffer{..} | col cursor == 0 && not (isFirstLine b) = unbreakLine b
 deleteCharacter b@Buffer{..} | col cursor == 0 = b
-deleteCharacter b@Buffer{..} = cursorLeft b{ content = content' } where
+deleteCharacter b@Buffer{..} = updateRegions (cpos-1) (-1) (cursorLeft b{ content = content' }) where
   Cursor{..} = cursor
+  cpos = posToOffset b line col
   (l, r) = T.splitAt col $ S.index content line
   ln' = T.take (T.length l - 1) l `append` r
   content' = update line ln' content
@@ -158,20 +162,48 @@ startSelection b@Buffer{..} = b{selection = [Region cpos cpos Selected]} where
 
 updateSelection b@Buffer{..} | F.null selection = b  
 updateSelection b@Buffer{..} = b{selection = selection'} where  
-  Cursor{..} = cursor
+  Cursor{..} = cursor 
   cpos = posToOffset b line col
-  selection' = P.map (\x -> x{endOffset = cpos}) selection
+  selection' = P.map fn selection
+  fn r@Region{..} = r{endOffset = p, style = s} where
+    (p, s) = case cpos of
+      _ | cpos == startOffset -> (cpos, Normal)
+      _                       -> (cpos-1, Selected)  
+     
 
 deleteSelection b@Buffer{..} | F.null selection = b 
-deleteSelection b@Buffer{..} = b' where
+deleteSelection b@Buffer{..} | style (P.head selection) == Normal = b{selection = []}
+deleteSelection b@Buffer{..} = updateRegions minPos (minPos - maxPos - 1) b' where
   [s@Region{..}] = selection  
   Cursor{..} = cursor
-  (minLine, minCol) = offsetToPos b $ min startOffset endOffset 
-  (maxLine, maxCol) = offsetToPos b $ max startOffset endOffset
+  minPos = min startOffset endOffset
+  maxPos = max startOffset endOffset
+  (minLine, minCol) = offsetToPos b $ minPos 
+  (maxLine, maxCol) = offsetToPos b $ maxPos
   (before, rem) = S.splitAt minLine content
   (selLine, after) = S.splitAt (maxLine - minLine + 1) rem
   (fl :< _) = viewl selLine
   (_ :> ll) = viewr selLine
-  lineOut = (T.take minCol fl) `T.append` (T.drop maxCol ll)
+  lineOut = (T.take minCol fl) `T.append` (T.drop (maxCol+1) ll)
   cursor' = cursor{line = minLine, col = minCol, preferredCol = minCol}
   b' = b{selection = [], content = (before |> lineOut) >< after, cursor = cursor'}
+
+updateRegion :: Int -> Int -> Region -> [Region]
+updateRegion offset added r@Region{..} = r' where
+  rStart = min startOffset endOffset
+  rEnd = max startOffset endOffset
+  r' = case offset of 
+    _ | offset > rEnd -> [r]
+    _ | offset <= rStart && added >= 0 -> [r{startOffset = rStart + added, endOffset = rEnd + added}]
+    _ | added >= 0 -> [r{startOffset = rStart, endOffset = rEnd + added}]
+    _ | offset - added <= rStart -> [r{startOffset = rStart + added, endOffset = rEnd + added}]
+    _ | offset <= rStart && offset - added > rEnd -> []
+    -- Must cover part of it
+    _ | offset < rStart -> [r{startOffset = offset, endOffset = rEnd + added}]
+    _ | offset - added -1  <= rEnd -> [r{startOffset = rStart, endOffset = rEnd + added}]
+    _ -> [r{startOffset = rStart + added, endOffset = offset}]
+    
+
+updateRegions :: Int -> Int -> Buffer -> Buffer
+updateRegions offset added b@Buffer{..} = b{regions = r'} where
+  r' = foldMap (updateRegion offset added) regions
