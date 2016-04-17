@@ -32,6 +32,7 @@ type BufferContent = Seq Line
 data Buffer = Buffer { content  :: BufferContent
                      , cursor  :: Cursor 
                      , selection :: [Selection]
+                     , regions :: [Region]
                      } deriving (Show)
 
 

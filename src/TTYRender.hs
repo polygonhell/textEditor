@@ -26,7 +26,7 @@ import Keys
 -- TODO only redraw changed lines
 
 styleMapping :: Map RegionStyle String
-styleMapping = M.fromList [(Normal, normal), (Selected, inverted)]
+styleMapping = M.fromList [(Normal, normal), (Selected, inverted), (Comment, grey)]
 
 
 
@@ -37,7 +37,7 @@ lastPosOnScreen v@ViewState{..} b@Buffer{..} = lastLineEnd where
   lastLineEnd = lastLineStart + lineLength endLine b 
 
 getSortedRegions :: Int -> ViewState -> Buffer -> [Region] -> [Region]
-getSortedRegions pos v b [] | pos < lastPosOnScreen v b= [Region pos (lastPosOnScreen v b) Normal]
+getSortedRegions pos v b [] | pos < lastPosOnScreen v b = [Region pos (lastPosOnScreen v b) Normal]
 getSortedRegions pos v b [] = []
 getSortedRegions pos v b _ | pos > lastPosOnScreen v b = []
 getSortedRegions pos v b (r@Region{..}:rs)  | pos < startOffset = rs' where
@@ -50,10 +50,10 @@ getSortedRegions pos v b (r@Region{..}:rs)  | pos >= startOffset = rs' where
   rs' = Region pos rEnd style : getSortedRegions (endOffset+1) v b rs
 
 getRegions :: ViewState -> Buffer -> [Region]
-getRegions v@ViewState{..} b@Buffer{..} = getSortedRegions initialPos v b regions where
+getRegions v@ViewState{..} b@Buffer{..} = getSortedRegions initialPos v b regs where
   initialPos = posToOffset b top 0
-  regions' = L.sortOn startOffset selection
-  regions = L.dropWhile fn regions'
+  regs' = L.sortOn startOffset (selection ++ regions) -- TODO deal with selection overlap
+  regs = L.dropWhile fn regs'
   fn x = (endOffset x) < initialPos
 
 
@@ -69,7 +69,7 @@ drawLine o line (r@Region{..}:rs) | o + T.length line < endOffset = do
   return $ r:rs
 drawLine o l (r@Region{..}:rs) = do
   let prefix = styleMapping ! style
-  let (p, l') = T.splitAt (endOffset - o) l 
+  let (p, l') = T.splitAt (endOffset - o + 1) l 
   putStr prefix
   putStr $ unpack p
   drawLine (endOffset+1) l' rs
@@ -125,6 +125,8 @@ normal = "\ESC[0m"
 inverted :: String
 inverted = "\ESC[7m"
 
+grey :: String
+grey = "\ESC[38;5;245m"
 
 readKeys :: IO Keys
 readKeys = do

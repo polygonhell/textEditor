@@ -54,10 +54,11 @@ main = do
   print env
   [inputFile] <- getArgs
   content <- loadFile inputFile
-  let buffer' = Buffer content (Cursor 0 0 0) []
+  let buffer' = Buffer content (Cursor 0 0 0) [] []
       offset = posToOffset buffer' 5 5
-      selection = [Region (posToOffset buffer' 4 0) offset Selected]
-      buffer = Buffer content (Cursor 0 0 0) selection
+      selection = [Region (posToOffset buffer' 4 5) offset Selected]
+      regions = [Region (posToOffset buffer' 7 7) (posToOffset buffer' 7 19) Comment]
+      buffer = Buffer content (Cursor 0 0 0) selection regions
       view = ViewState 0 0 (TS.width sz) 20 -- (TS.height sz)
   initTTY
   loop buffer view
