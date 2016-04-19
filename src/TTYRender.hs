@@ -150,7 +150,7 @@ printKeys = foldMap printKey
 
 readKeys :: IO Keys
 readKeys = do
-  (str, bytes) <- fdRead stdInput 3 
+  (str, bytes) <- fdRead stdInput 10 
   return $ case str of
     "\ESC[A" -> CursorUp
     "\ESC[B" -> CursorDown
