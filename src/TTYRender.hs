@@ -26,7 +26,7 @@ import Keys
 -- TODO only redraw changed lines
 
 styleMapping :: Map RegionStyle String
-styleMapping = M.fromList [(Normal, normal), (Selected, inverted), (Comment, grey)]
+styleMapping = M.fromList [(Normal, normal), (Selected, bgColor 12), (Comment, fgColor 220)]
 
 
 
@@ -51,6 +51,8 @@ getSortedRegions pos v b (r@Region{..}:rs)  | pos >= startOffset = rs' where
 
 -- Assumes regions are sorted and offsets are ordered
 mergeSortedRegions :: [Region] -> [Region] -> [Region] 
+mergeSortedRegions [] r2s = r2s
+mergeSortedRegions r1s [] = r1s
 mergeSortedRegions (r1:r1s) (r2:r2s) = rOut where
   rOut = case r1 of
     -- None overlapping cases
@@ -58,10 +60,10 @@ mergeSortedRegions (r1:r1s) (r2:r2s) = rOut where
     _ | endOffset r2 < startOffset r1 -> r2 : mergeSortedRegions (r1:r1s) r2s
     -- Overlap with single start region
     _ | startOffset r1 < startOffset r2 -> r' : mergeSortedRegions r1s' (r2:r2s) where
-      r' = Region (startOffset r1) (startOffset r2) (styles r1)
+      r' = Region (startOffset r1) (startOffset r2 - 1) (styles r1)
       r1s' = Region (startOffset r2) (endOffset r1) (styles r1) : r1s
     _ | startOffset r2 < startOffset r1 -> r' : mergeSortedRegions (r1:r1s) r2s' where
-      r' = Region (startOffset r2) (startOffset r1) (styles r2)
+      r' = Region (startOffset r2) (startOffset r1 - 1) (styles r2)
       r2s' = Region (startOffset r1) (endOffset r2) (styles r2) : r2s
     -- Both regions start simultaneously
     _ -> r' : mergeSortedRegions r1s' r2s' where
@@ -89,20 +91,25 @@ getRegions v@ViewState{..} b@Buffer{..} = getSortedRegions initialPos v b regs w
   fn x = endOffset x < initialPos
 
 
+stylePrefix :: Region -> String
+stylePrefix Region{..} = prefix where 
+  styleStrings = L.map (styleMapping !) styles
+  prefix = normal ++ L.concat styleStrings
+
+
+
 drawLine :: Int -> Line -> [Region] -> IO [Region]
 drawLine _ _ [] = return []
 drawLine _ line rs | line == T.empty = return rs 
 drawLine o l (r@Region{..}:rs) | o > endOffset = drawLine o l rs  
 --drawLine o l (r@Region{..}:rs) | o < startOffset = drawLine o l rs  
 drawLine o line (r@Region{..}:rs) | o + T.length line < endOffset = do
-  let prefix = styleMapping ! (L.head styles)
-  putStr prefix
+  putStr $ stylePrefix r
   putStr $ unpack line
   return $ r:rs
 drawLine o l (r@Region{..}:rs) = do
-  let prefix = styleMapping ! (L.head styles)
   let (p, l') = T.splitAt (endOffset - o + 1) l 
-  putStr prefix
+  putStr $ stylePrefix r
   putStr $ unpack p
   drawLine (endOffset+1) l' rs
 
@@ -111,13 +118,16 @@ drawLines :: ViewState -> Int -> Buffer -> [Region] -> IO ()
 drawLines v@ViewState{..} lNum _ _ | lNum == height = return ()
 drawLines v@ViewState{..} lNum b@Buffer{..} rs = do
   let l = lNum + top
-      h = if (l < S.length content) then S.index content l else T.empty 
+      h = if l < S.length content then S.index content l else T.empty 
       offset = posToOffset b l 0
-      line = T.take width $ T.drop left h
-      padding = L.replicate (width - T.length line) ' '
+      lne = T.take width $ T.drop left h
+      padding = L.replicate (width - T.length lne) ' '
 
-  
   rs' <- drawLine offset h rs
+  -- Need to clear the state if a new regions starts on the unprinted Char at the end of the line
+  let nextRs = if L.null rs' then Region 0 0 [] else L.head rs'
+      (nRsLine, nRsCol) = offsetToPos b $ startOffset nextRs
+  when (line cursor == l && nRsCol >= T.length h) $ putStr normal
   putStr padding
 
   when (lNum /= height - 1) $ putStr "\n"
@@ -159,8 +169,17 @@ normal = "\ESC[0m"
 inverted :: String
 inverted = "\ESC[7m"
 
-grey :: String
-grey = "\ESC[38;5;220m"
+fgColor :: Int -> String
+fgColor = printf "\ESC[38;5;%dm"
+
+bgColor :: Int -> String
+bgColor = printf "\ESC[48;5;%dm"
+
+saveCursor :: String
+saveCursor = "\ESC[s"
+
+restoreCursor :: String
+restoreCursor = "\ESC[u"
 
 
 printKey :: Char -> String
@@ -223,7 +242,7 @@ draw v@ViewState{..} b@Buffer{..} = do
 
   
   putStr $ toPos 32 0 ++ show (getRegions v b) ++ "               "
-  putStr $ toPos 34 0 ++ printf "Line: %-3d Col: %-3d (%d)" line col (posToOffset b line col)
+  putStr $ toPos 40 0 ++ printf "Line: %-3d Col: %-3d (%d)" line col (posToOffset b line col)
   putStr $ toPos cursorY cursorX
   putStr showCursor
   hFlush stdout
