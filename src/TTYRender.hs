@@ -49,9 +49,28 @@ getSortedRegions pos v b (r@Region{..}:rs)  | pos >= startOffset = rs' where
   rEnd = min maxPos endOffset
   rs' = Region pos rEnd styles : getSortedRegions (endOffset+1) v b rs
 
-
---mergeSortedRegions :: [Region] -> [Region] -> [Region] 
-
+-- Assumes regions are sorted and offsets are ordered
+mergeSortedRegions :: [Region] -> [Region] -> [Region] 
+mergeSortedRegions (r1:r1s) (r2:r2s) = rOut where
+  rOut = case r1 of
+    -- None overlapping cases
+    _ | endOffset r1 < startOffset r2 -> r1 : mergeSortedRegions r1s (r2:r2s)
+    _ | endOffset r2 < startOffset r1 -> r2 : mergeSortedRegions (r1:r1s) r2s
+    -- Overlap with single start region
+    _ | startOffset r1 < startOffset r2 -> r' : mergeSortedRegions r1s' (r2:r2s) where
+      r' = Region (startOffset r1) (startOffset r2) (styles r1)
+      r1s' = Region (startOffset r2) (endOffset r1) (styles r1) : r1s
+    _ | startOffset r2 < startOffset r1 -> r' : mergeSortedRegions (r1:r1s) r2s' where
+      r' = Region (startOffset r2) (startOffset r1) (styles r2)
+      r2s' = Region (startOffset r1) (endOffset r2) (styles r2) : r2s
+    -- Both regions start simultaneously
+    _ -> r' : mergeSortedRegions r1s' r2s' where
+      r' = Region (startOffset r1) (min (endOffset r1) (endOffset r2)) (styles r1 `L.union` styles r2)
+      (r1s', r2s') = case r1 of 
+        _ | endOffset r1 < endOffset r2 -> (r1s, Region (endOffset r1 + 1) (endOffset r2) (styles r2) : r2s)
+        _ | endOffset r2 < endOffset r1 -> (Region (endOffset r2 + 1) (endOffset r1) (styles r1) : r1s, r2s)
+        _ -> (r1s, r2s)
+      
 
 orderOffsets :: Region -> Region
 orderOffsets r@Region{..} = r{startOffset = so, endOffset = eo} where
@@ -63,9 +82,10 @@ getRegions :: ViewState -> Buffer -> [Region]
 getRegions v@ViewState{..} b@Buffer{..} = getSortedRegions initialPos v b regs where
   initialPos = posToOffset b top 0
   -- Selection region has offsets that are not ordered
-  selection' = P.map orderOffsets selection
-  regs' = L.sortOn startOffset (selection' ++ regions) -- TODO deal with selection overlap
-  regs = L.dropWhile fn regs'
+  selection' = L.sortOn startOffset $ P.map orderOffsets selection
+  regs' = L.sortOn startOffset regions
+  regs'' = mergeSortedRegions selection' regs'
+  regs = L.dropWhile fn regs''
   fn x = endOffset x < initialPos
 
 
