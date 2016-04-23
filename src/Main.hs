@@ -59,7 +59,7 @@ main = do
   let buffer' = Buffer content (Cursor 0 0 0) [] []
       offset = posToOffset buffer' 5 5
       selection = []
-      regions = [Region (posToOffset buffer' 7 7) (posToOffset buffer' 7 19) Comment]
+      regions = [Region (posToOffset buffer' 7 7) (posToOffset buffer' 7 19) [Comment]]
       buffer = Buffer content (Cursor 0 0 0) selection regions
       view = ViewState 0 0 (TS.width sz) 20 -- (TS.height sz)
   initTTY

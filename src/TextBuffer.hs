@@ -21,7 +21,7 @@ data RegionStyle = Normal
 
 data Region = Region { startOffset :: Int
                      , endOffset :: Int
-                     , style :: RegionStyle
+                     , styles :: [RegionStyle]
                      } deriving (Show)
 
 type Selection = Region
@@ -44,6 +44,7 @@ isLastLine :: Buffer -> Bool
 isLastLine Buffer{..} = line cursor == S.length content - 1
 
 lineLength :: Int -> Buffer -> Int
+lineLength line Buffer{..} | line >= S.length content = 0
 lineLength line Buffer{..} = T.length (S.index content line)
 
 curLineLength :: Buffer -> Int
@@ -155,7 +156,7 @@ clearSelection :: Buffer -> Buffer
 clearSelection b@Buffer{..} = b{selection = []}
 
 startSelection :: Buffer -> Buffer
-startSelection b@Buffer{..} = b{selection = [Region cpos cpos Selected]} where
+startSelection b@Buffer{..} = b{selection = [Region cpos cpos [Selected]]} where
   Cursor{..} = cursor
   cpos = posToOffset b line col
 
@@ -165,14 +166,14 @@ updateSelection b@Buffer{..} = b{selection = selection'} where
   Cursor{..} = cursor 
   cpos = posToOffset b line col
   selection' = P.map fn selection
-  fn r@Region{..} = r{endOffset = p, style = s} where
+  fn r@Region{..} = r{endOffset = p, styles = s} where
     (p, s) = case cpos of
-      _ | cpos == startOffset -> (cpos, Normal)
-      _                       -> (cpos-1, Selected)  
+      _ | cpos == startOffset -> (cpos, [Normal])
+      _                       -> (cpos-1, [Selected])  
      
 
 deleteSelection b@Buffer{..} | F.null selection = b 
-deleteSelection b@Buffer{..} | style (P.head selection) == Normal = b{selection = []}
+deleteSelection b@Buffer{..} | styles (P.head selection) == [Normal] = b{selection = []}
 deleteSelection b@Buffer{..} = updateRegions minPos (minPos - maxPos - 1) b' where
   [s@Region{..}] = selection  
   Cursor{..} = cursor

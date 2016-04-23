@@ -37,17 +37,20 @@ lastPosOnScreen v@ViewState{..} b@Buffer{..} = lastLineEnd where
   lastLineEnd = lastLineStart + lineLength endLine b 
 
 getSortedRegions :: Int -> ViewState -> Buffer -> [Region] -> [Region]
-getSortedRegions pos v b [] | pos < lastPosOnScreen v b = [Region pos (lastPosOnScreen v b) Normal]
+getSortedRegions pos v b [] | pos < lastPosOnScreen v b = [Region pos (lastPosOnScreen v b) [Normal]]
 getSortedRegions pos v b [] = []
 getSortedRegions pos v b _ | pos > lastPosOnScreen v b = []
 getSortedRegions pos v b (r@Region{..}:rs)  | pos < startOffset = rs' where
   maxPos = lastPosOnScreen v b
   rEnd = min maxPos (startOffset-1)
-  rs' = Region pos rEnd Normal : getSortedRegions startOffset v b (r:rs)
+  rs' = Region pos rEnd [Normal] : getSortedRegions startOffset v b (r:rs)
 getSortedRegions pos v b (r@Region{..}:rs)  | pos >= startOffset = rs' where
   maxPos = lastPosOnScreen v b
   rEnd = min maxPos endOffset
-  rs' = Region pos rEnd style : getSortedRegions (endOffset+1) v b rs
+  rs' = Region pos rEnd styles : getSortedRegions (endOffset+1) v b rs
+
+
+--mergeSortedRegions :: [Region] -> [Region] -> [Region] 
 
 
 orderOffsets :: Region -> Region
@@ -72,12 +75,12 @@ drawLine _ line rs | line == T.empty = return rs
 drawLine o l (r@Region{..}:rs) | o > endOffset = drawLine o l rs  
 --drawLine o l (r@Region{..}:rs) | o < startOffset = drawLine o l rs  
 drawLine o line (r@Region{..}:rs) | o + T.length line < endOffset = do
-  let prefix = styleMapping ! style
+  let prefix = styleMapping ! (L.head styles)
   putStr prefix
   putStr $ unpack line
   return $ r:rs
 drawLine o l (r@Region{..}:rs) = do
-  let prefix = styleMapping ! style
+  let prefix = styleMapping ! (L.head styles)
   let (p, l') = T.splitAt (endOffset - o + 1) l 
   putStr prefix
   putStr $ unpack p
@@ -88,13 +91,15 @@ drawLines :: ViewState -> Int -> Buffer -> [Region] -> IO ()
 drawLines v@ViewState{..} lNum _ _ | lNum == height = return ()
 drawLines v@ViewState{..} lNum b@Buffer{..} rs = do
   let l = lNum + top
-      h = S.index content l 
+      h = if (l < S.length content) then S.index content l else T.empty 
       offset = posToOffset b l 0
       line = T.take width $ T.drop left h
       padding = L.replicate (width - T.length line) ' '
 
+  
   rs' <- drawLine offset h rs
   putStr padding
+
   when (lNum /= height - 1) $ putStr "\n"
   drawLines v (lNum+1) b rs'
 
@@ -202,7 +207,4 @@ draw v@ViewState{..} b@Buffer{..} = do
   putStr $ toPos cursorY cursorX
   putStr showCursor
   hFlush stdout
-
-
-
 
