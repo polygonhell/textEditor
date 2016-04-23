@@ -169,7 +169,8 @@ updateSelection b@Buffer{..} = b{selection = selection'} where
   fn r@Region{..} = r{endOffset = p, styles = s} where
     (p, s) = case cpos of
       _ | cpos == startOffset -> (cpos, [Normal])
-      _                       -> (cpos-1, [Selected])  
+      _ | cpos > startOffset  -> (cpos-1, [Selected])  
+      _                       -> (cpos+1, [Selected])
      
 
 deleteSelection b@Buffer{..} | F.null selection = b 
@@ -179,13 +180,13 @@ deleteSelection b@Buffer{..} = updateRegions minPos (minPos - maxPos - 1) b' whe
   Cursor{..} = cursor
   minPos = min startOffset endOffset
   maxPos = max startOffset endOffset
-  (minLine, minCol) = offsetToPos b $ minPos 
-  (maxLine, maxCol) = offsetToPos b $ maxPos
+  (minLine, minCol) = offsetToPos b minPos 
+  (maxLine, maxCol) = offsetToPos b maxPos
   (before, rem) = S.splitAt minLine content
   (selLine, after) = S.splitAt (maxLine - minLine + 1) rem
   (fl :< _) = viewl selLine
   (_ :> ll) = viewr selLine
-  lineOut = (T.take minCol fl) `T.append` (T.drop (maxCol+1) ll)
+  lineOut = T.take minCol fl `T.append` T.drop (maxCol+1) ll
   cursor' = cursor{line = minLine, col = minCol, preferredCol = minCol}
   b' = b{selection = [], content = (before |> lineOut) >< after, cursor = cursor'}
 
