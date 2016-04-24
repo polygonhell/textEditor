@@ -1,11 +1,8 @@
--- {-# LANGUAGE RecordWildCards #-}
-
 module Highlight where 
 
 import qualified Data.Map as M
 import qualified Data.Text.Lazy as T
 import Data.Foldable as F
-import Data.Maybe
 import Data.Char
 -- import Data.Sequence
 import Control.Monad
@@ -80,7 +77,6 @@ option  p q = SyntaxParser $ \st s ->
     []     -> parse q st s
     res    -> res
 
-
 satisfy :: (Char -> Bool) -> SyntaxParser Char
 satisfy p = item `bind` \c ->
   if p c
@@ -89,6 +85,9 @@ satisfy p = item `bind` \c ->
 
 oneOf :: String -> SyntaxParser Char
 oneOf s = satisfy (`elem` s)
+
+notOneOf :: String -> SyntaxParser Char
+notOneOf s = satisfy (not . (`elem` s))
 
 char :: Char -> SyntaxParser Char
 char c = satisfy (c ==)
@@ -137,15 +136,12 @@ stringR =  do
   char '\"'
   return r 
 
-parseTest :: SyntaxParser [Region]
-parseTest =  integerR <|> stringR
-
--- testParser2 :: String -> IO ()
--- testParser2 a = print $ fold $ runParse (many (parseTest <|> ignored)) (T.pack a)
+topLevel :: SyntaxParser [Region]
+topLevel =  integerR <|> stringR
 
 
 highLight :: BufferContent -> [Region]
-highLight b = fold $ runParse (many (parseTest <|> ignored)) t where 
+highLight b = fold $ runParse (many (topLevel <|> ignored)) t where 
   withCR = fmap ((`T.snoc` '\n') . T.fromStrict) b  -- Note adds an extra CR at the end of the file (shouldn't matter)
   t = foldl T.append T.empty withCR
 
