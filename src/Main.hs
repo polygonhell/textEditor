@@ -15,6 +15,7 @@ import Keys
 import TextBuffer
 import TTYRender
 import View
+import Highlight
 
 
 loadFile :: String -> IO BufferContent
@@ -42,12 +43,17 @@ updateBuffer k b@Buffer{..} = b' where
 loop :: Buffer -> ViewState -> IO()
 loop b v = do 
   key <- readKeys
-  let b' = updateSelection $ updateBuffer key b
-  let v' = scrollView b' v
+  let b'' = updateSelection $ updateBuffer key b{contentChanged = False}
+      dirty = contentChanged b''
+      b' = if dirty then  b''{regions  =  highLight (content b'')}  else b'' -- Still too often but better
+      v' = scrollView b' v
   P.putStr (toPos 30 0 ++  show (selection b'))
   draw v' b'
   loop b' v'
 
+
+testContent :: BufferContent
+testContent = S.fromList [pack " -- This is a \"test\"", pack "\"Not a comment\"", pack "  -- This is a test "]
 
 main :: IO ()
 main = do
@@ -56,11 +62,14 @@ main = do
   print env
   [inputFile] <- getArgs
   content <- loadFile inputFile
-  let buffer' = Buffer content (Cursor 0 0 0) [] []
+  let buffer' = Buffer content (Cursor 0 0 0) [] [] False
       offset = posToOffset buffer' 5 5
       selection = []
-      regions = [Region (posToOffset buffer' 7 7) (posToOffset buffer' 7 19) [Comment]]
-      buffer = Buffer content (Cursor 0 0 0) selection regions
+      -- regions = [Region (posToOffset buffer' 7 7) (posToOffset buffer' 7 19) [Comment]]
+      regions = highLight content
+      buffer = Buffer content (Cursor 0 0 0) selection regions False
       view = ViewState 0 0 (TS.width sz) 20 -- (TS.height sz)
+  -- print $ highLight testContent
+  -- print "Hello"
   initTTY
   loop buffer view

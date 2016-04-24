@@ -17,7 +17,9 @@ data Cursor = Cursor { preferredCol :: Int
 
 data RegionStyle = Normal 
                  | Selected
-                 | Comment deriving (Show, Eq, Ord)
+                 | Comment 
+                 | Number
+                 | RSNamed String deriving (Show, Eq, Ord)
 
 data Region = Region { startOffset :: Int
                      , endOffset :: Int
@@ -33,6 +35,7 @@ data Buffer = Buffer { content  :: BufferContent
                      , cursor  :: Cursor 
                      , selection :: [Selection]
                      , regions :: [Region]
+                     , contentChanged :: Bool
                      } deriving (Show)
 
 
@@ -113,7 +116,7 @@ cursorDown b@Buffer{..} = b{cursor = cursor'} where
   cursor' = cursor{line = newLine, col = newCol}
 
 insertCharacter :: Char -> Buffer -> Buffer
-insertCharacter c b@Buffer{..} = updateRegions cpos 1 (cursorRight b{content = content'}) where
+insertCharacter c b@Buffer{..} = dirty $ updateRegions cpos 1 (cursorRight b{content = content'}) where
   Cursor{..} = cursor
   cpos = posToOffset b line col
   (l, r) = T.splitAt col $ S.index content line
@@ -121,7 +124,7 @@ insertCharacter c b@Buffer{..} = updateRegions cpos 1 (cursorRight b{content = c
   content' = update line ln' content
 
 breakLine :: Buffer -> Buffer
-breakLine b@Buffer{..} = updateRegions cpos 1 b{content = content', cursor = cursor'} where
+breakLine b@Buffer{..} = dirty $ updateRegions cpos 1 b{content = content', cursor = cursor'} where
   Cursor{..} = cursor
   cpos = posToOffset b line col
   (l, r) = T.splitAt col ln
@@ -131,7 +134,7 @@ breakLine b@Buffer{..} = updateRegions cpos 1 b{content = content', cursor = cur
   cursor' = cursor{line = line + 1, col = 0, preferredCol = 0}
 
 unbreakLine :: Buffer -> Buffer
-unbreakLine b@Buffer{..} = updateRegions (cpos-1) (-1) b{content = content', cursor = cursor'} where
+unbreakLine b@Buffer{..} = dirty $ updateRegions (cpos-1) (-1) b{content = content', cursor = cursor'} where
   Cursor{..} = cursor
   cpos = posToOffset b line col
   (s, e) = S.splitAt line content
@@ -144,7 +147,7 @@ unbreakLine b@Buffer{..} = updateRegions (cpos-1) (-1) b{content = content', cur
 deleteCharacter :: Buffer -> Buffer
 deleteCharacter b@Buffer{..} | col cursor == 0 && not (isFirstLine b) = unbreakLine b
 deleteCharacter b@Buffer{..} | col cursor == 0 = b
-deleteCharacter b@Buffer{..} = updateRegions (cpos-1) (-1) (cursorLeft b{ content = content' }) where
+deleteCharacter b@Buffer{..} = dirty $ updateRegions (cpos-1) (-1) (cursorLeft b{ content = content' }) where
   Cursor{..} = cursor
   cpos = posToOffset b line col
   (l, r) = T.splitAt col $ S.index content line
@@ -175,7 +178,7 @@ updateSelection b@Buffer{..} = b{selection = selection'} where
 
 deleteSelection b@Buffer{..} | F.null selection = b 
 deleteSelection b@Buffer{..} | styles (P.head selection) == [Normal] = b{selection = []}
-deleteSelection b@Buffer{..} = updateRegions minPos (minPos - maxPos - 1) b' where
+deleteSelection b@Buffer{..} = dirty $ updateRegions minPos (minPos - maxPos - 1) b' where
   [s@Region{..}] = selection  
   Cursor{..} = cursor
   minPos = min startOffset endOffset
@@ -209,3 +212,7 @@ updateRegion offset added r@Region{..} = r' where
 updateRegions :: Int -> Int -> Buffer -> Buffer
 updateRegions offset added b@Buffer{..} = b{regions = r'} where
   r' = foldMap (updateRegion offset added) regions
+
+
+dirty :: Buffer -> Buffer
+dirty b@Buffer{..}  = b{contentChanged = True}

@@ -26,7 +26,7 @@ import Keys
 -- TODO only redraw changed lines
 
 styleMapping :: Map RegionStyle String
-styleMapping = M.fromList [(Normal, normal), (Selected, bgColor 12), (Comment, fgColor 220)]
+styleMapping = M.fromList [(Normal, normal), (Selected, bgColor 12), (Comment, fgColor 220), (Number, fgColor 12)]
 
 
 
@@ -239,10 +239,11 @@ draw v@ViewState{..} b@Buffer{..} = do
   let Cursor {..} = cursor
       cursorX = col - left + 1
       cursorY = line - top + 1
+      dirty = if contentChanged then "*" else " "
 
   
-  putStr $ toPos 32 0 ++ show (getRegions v b) ++ "               "
-  putStr $ toPos 40 0 ++ printf "Line: %-3d Col: %-3d (%d)" line col (posToOffset b line col)
+  -- putStr $ toPos 32 0 ++ show (getRegions v b) ++ "               "
+  putStr $ toPos 40 0 ++ printf "%sLine: %-3d Col: %-3d (%d)" dirty line col (posToOffset b line col)
   putStr $ toPos cursorY cursorX
   putStr showCursor
   hFlush stdout

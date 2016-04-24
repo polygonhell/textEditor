@@ -61,7 +61,11 @@ executable textEditor
                        containers,
                        unix,
                        text,
-                       terminal-size
+                       array,
+                       terminal-size,
+                       regex-tdfa-text,
+                       regex-tdfa,
+                       parsec
 
   
   -- Directories containing source files.
