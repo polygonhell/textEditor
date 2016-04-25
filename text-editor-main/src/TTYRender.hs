@@ -20,7 +20,7 @@ import TextBuffer
 import View
 import Keys
 
-
+-- TODO Ranges are rendered incorrectly for Horizontally scrolled Lines
 -- TODO this needs state for the following
 -- TODO use the cosoles scroll functionality
 -- TODO only redraw changed lines

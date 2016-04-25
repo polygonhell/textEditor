@@ -62,10 +62,7 @@ executable text-editor-main
                        unix,
                        text,
                        array,
-                       terminal-size,
-                       regex-tdfa-text,
-                       regex-tdfa,
-                       parsec
+                       terminal-size
 
   
   -- Directories containing source files.
