@@ -28,8 +28,6 @@ import Keys
 styleMapping :: Map RegionStyle String
 styleMapping = M.fromList [(Normal, normal), (Selected, bgColor 12), (Comment, fgColor 220), (Number, fgColor 12)]
 
-
-
 lastPosOnScreen :: ViewState -> Buffer -> Int
 lastPosOnScreen v@ViewState{..} b@Buffer{..} = lastLineEnd where
   endLine = top + height-1
@@ -123,7 +121,7 @@ drawLines v@ViewState{..} lNum b@Buffer{..} rs = do
       lne = T.take width $ T.drop left h
       padding = L.replicate (width - T.length lne) ' '
 
-  rs' <- drawLine offset h rs
+  rs' <- drawLine offset lne rs
   -- Need to clear the state if a new regions starts on the unprinted Char at the end of the line
   let nextRs = if L.null rs' then Region 0 0 [] else L.head rs'
       (nRsLine, nRsCol) = offsetToPos b $ startOffset nextRs
