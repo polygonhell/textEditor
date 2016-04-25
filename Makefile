@@ -9,7 +9,7 @@ run: all
 
 main: text-editor-main/src/*.hs
 	cd text-editor-main; \
-	cabal build; \
+	cabal build
 
 clean: cleanmain
 
