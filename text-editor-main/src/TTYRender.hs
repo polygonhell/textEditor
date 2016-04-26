@@ -20,9 +20,7 @@ import TextBuffer
 import View
 import Keys
 
--- TODO highlighting for inverted regions is incorrect when cursor is at end of line
 -- TODO this needs state for the following
--- TODO use the cosoles scroll functionality
 -- TODO only redraw changed lines
 
 styleMapping :: Map RegionStyle String
