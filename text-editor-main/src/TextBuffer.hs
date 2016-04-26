@@ -19,6 +19,7 @@ data RegionStyle = Normal
                  | Selected
                  | Comment 
                  | Number
+                 | StringStyle
                  | RSNamed String deriving (Show, Eq, Ord)
 
 data Region = Region { startOffset :: Int

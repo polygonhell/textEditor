@@ -1,13 +1,28 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+
 module Highlight where 
 
 import qualified Data.Map as M
 import qualified Data.Text.Lazy as T
 import Data.Foldable as F
 import Data.Char
--- import Data.Sequence
 import Control.Monad
 import Control.Applicative
 import TextBuffer
+
+
+
+-- Variadic function to make applicative syntax easier to use
+class BuildList r where
+    rList :: [Region] -> r
+
+instance BuildList [Region] where
+    rList = id
+
+instance (BuildList r) => BuildList ([Region] -> r) where
+    rList x = rList . (x ++) 
 
 
 
@@ -120,7 +135,45 @@ region l p = do
   end <- getPos
   return [Region start (end-1) [l]]
 
+noregion :: SyntaxParser a -> SyntaxParser [Region]
+noregion p = do {p ; return []}
+
+manyTill :: SyntaxParser a -> SyntaxParser a -> SyntaxParser [a]
+manyTill p end = do { end; return [] }
+                 <|>
+                 do {x <- p; xs <- manyTill p end; return (x:xs)}
+
+anyChar :: SyntaxParser String
+anyChar = do 
+  c <- item
+  return [c]
+
 -- The actual syntax parser
+-- TODO How best to deal with Comments -- include them in WhiteSpace?
+
+
+-- Note can't use spaces here because many of nothing is an infinite loop
+wsChars :: String
+wsChars = "\r\n\t "
+lowerCase = "abcdefghijklmnopqrstuvwxyz"
+upperCase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+letters = lowerCase ++ upperCase
+numbers = "1234567890"
+alphaNum = letters ++ numbers
+identifierBodyChars = alphaNum ++ "'"
+
+
+wsOrCommentR :: SyntaxParser [Region]
+wsOrCommentR = F.fold <$> many (inlineCommentR <|> someSpaces) where 
+  someSpaces = noregion (some (oneOf "\r\n "))
+
+identifierR ::SyntaxParser [Region]
+identifierR = rList <$> region Comment ident <*> wsOrCommentR where
+  ident = oneOf lowerCase *> some (oneOf identifierBodyChars)
+
+typeDeclarationR :: SyntaxParser [Region]
+typeDeclarationR =  rList <$> identifierR <*> region Number (string "::") <*> wsOrCommentR <*> region StringStyle (many (notOneOf "\n\r")) 
+
 
 
 integerR :: SyntaxParser [Region]
@@ -128,16 +181,19 @@ integerR =  region Number $ do
   oneOf "+-" <|> return '0'
   many1 digit
 
-
 stringR :: SyntaxParser [Region]
-stringR =  do
+stringR =  region StringStyle $ do
   char '\"'
-  r <- region Comment $ many (notChar '\"')
-  char '\"'
-  return r 
+  manyTill item (char '\"')
+
+inlineCommentR :: SyntaxParser [Region]
+inlineCommentR = region Comment $ do
+  string "{-"
+  manyTill anyChar (string "-}")
+
 
 topLevel :: SyntaxParser [Region]
-topLevel =  integerR <|> stringR
+topLevel =  integerR <|> stringR <|> inlineCommentR <|> typeDeclarationR
 
 
 highLight :: BufferContent -> [Region]

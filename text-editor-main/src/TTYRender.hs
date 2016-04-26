@@ -24,7 +24,7 @@ import Keys
 -- TODO only redraw changed lines
 
 styleMapping :: Map RegionStyle String
-styleMapping = M.fromList [(Normal, normal), (Selected, bgColor 12), (Comment, fgColor 220), (Number, fgColor 12)]
+styleMapping = M.fromList [(Normal, normal), (Selected, bgColor 12), (Comment, fgColor 220), (Number, fgColor 12), (StringStyle, fgColor 45)]
 
 lastPosOnScreen :: ViewState -> Buffer -> Int
 lastPosOnScreen v@ViewState{..} b@Buffer{..} = lastLineEnd where
