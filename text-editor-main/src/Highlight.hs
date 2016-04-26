@@ -169,7 +169,7 @@ wsOrCommentR = F.fold <$> many (inlineCommentR <|> someSpaces) where
 
 identifierR ::SyntaxParser [Region]
 identifierR = rList <$> region Comment ident <*> wsOrCommentR where
-  ident = oneOf lowerCase *> some (oneOf identifierBodyChars)
+  ident = oneOf lowerCase *> some (oneOf alphaNum)
 
 typeDeclarationR :: SyntaxParser [Region]
 typeDeclarationR =  rList <$> identifierR <*> region Number (string "::") <*> wsOrCommentR <*> region StringStyle (many (notOneOf "\n\r")) 
