@@ -167,12 +167,12 @@ wsOrCommentR :: SyntaxParser [Region]
 wsOrCommentR = F.fold <$> many (inlineCommentR <|> someSpaces) where 
   someSpaces = noregion (some (oneOf "\r\n "))
 
-identifierR ::SyntaxParser [Region]
-identifierR = rList <$> region Comment ident <*> wsOrCommentR where
+identifierR :: RegionStyle -> SyntaxParser [Region]
+identifierR rs = rList <$> region rs ident <*> wsOrCommentR where
   ident = oneOf lowerCase *> some (oneOf alphaNum)
 
 typeDeclarationR :: SyntaxParser [Region]
-typeDeclarationR =  rList <$> identifierR <*> region Number (string "::") <*> wsOrCommentR <*> region StringStyle (many (notOneOf "\n\r")) 
+typeDeclarationR =  rList <$> identifierR Comment <*> region Number (string "::") <*> wsOrCommentR <*> region StringStyle (many (notOneOf "\n\r")) 
 
 
 
