@@ -20,7 +20,7 @@ import TextBuffer
 import View
 import Keys
 
--- TODO Ranges are rendered incorrectly for Horizontally scrolled Lines
+-- TODO highlighting for inverted regions is incorrect when cursor is at end of line
 -- TODO this needs state for the following
 -- TODO use the cosoles scroll functionality
 -- TODO only redraw changed lines
@@ -117,7 +117,7 @@ drawLines v@ViewState{..} lNum _ _ | lNum == height = return ()
 drawLines v@ViewState{..} lNum b@Buffer{..} rs = do
   let l = lNum + top
       h = if l < S.length content then S.index content l else T.empty 
-      offset = posToOffset b l 0
+      offset = posToOffset b l 0 + left
       lne = T.take width $ T.drop left h
       padding = L.replicate (width - T.length lne) ' '
 
@@ -125,7 +125,9 @@ drawLines v@ViewState{..} lNum b@Buffer{..} rs = do
   -- Need to clear the state if a new regions starts on the unprinted Char at the end of the line
   let nextRs = if L.null rs' then Region 0 0 [] else L.head rs'
       (nRsLine, nRsCol) = offsetToPos b $ startOffset nextRs
-  when (line cursor == l && nRsCol >= T.length h) $ putStr normal
+  when (l == nRsLine) $ putStr (stylePrefix nextRs)
+
+  -- putStr $ "**" ++ show nRsLine ++ " " ++ show nRsCol ++ " " ++ show (T.length h) -- ++ show nextRs
   putStr padding
 
   when (lNum /= height - 1) $ putStr "\n"

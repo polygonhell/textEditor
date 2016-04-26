@@ -34,6 +34,7 @@ type BufferContent = Seq Line
 data Buffer = Buffer { content  :: BufferContent
                      , cursor  :: Cursor 
                      , selection :: [Selection]
+                     , initialSelectionOffset :: Int
                      , regions :: [Region]
                      , contentChanged :: Bool
                      } deriving (Show)
@@ -159,7 +160,7 @@ clearSelection :: Buffer -> Buffer
 clearSelection b@Buffer{..} = b{selection = []}
 
 startSelection :: Buffer -> Buffer
-startSelection b@Buffer{..} = b{selection = [Region cpos cpos [Selected]]} where
+startSelection b@Buffer{..} = b{selection = [Region cpos cpos [Selected]], initialSelectionOffset = cpos} where
   Cursor{..} = cursor
   cpos = posToOffset b line col
 
@@ -169,11 +170,13 @@ updateSelection b@Buffer{..} = b{selection = selection'} where
   Cursor{..} = cursor 
   cpos = posToOffset b line col
   selection' = P.map fn selection
-  fn r@Region{..} = r{endOffset = p, styles = s} where
-    (p, s) = case cpos of
-      _ | cpos == startOffset -> (cpos, [Normal])
-      _ | cpos > startOffset  -> (cpos-1, [Selected])  
-      _                       -> (cpos+1, [Selected])
+  fn r@Region{..} = r{startOffset = o, endOffset = p, styles = s} where
+    (o, p, s) = case cpos of
+      _ | cpos == startOffset -> (initialSelectionOffset, cpos, [Normal])
+      _ | cpos > startOffset  -> (initialSelectionOffset, cpos-1, [Selected])  
+      -- Special case for reverse selection of EOL Character -- reverse selections are inclusive
+      _ | cpos == startOffset - 1 && col == lineLength line b - 1 -> (initialSelectionOffset-1, cpos, [Normal])
+      _                       -> (initialSelectionOffset- 1 , cpos, [Selected])
      
 
 deleteSelection b@Buffer{..} | F.null selection = b 

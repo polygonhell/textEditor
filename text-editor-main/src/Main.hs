@@ -62,12 +62,10 @@ main = do
   print env
   [inputFile] <- getArgs
   content <- loadFile inputFile
-  let buffer' = Buffer content (Cursor 0 0 0) [] [] False
-      offset = posToOffset buffer' 5 5
-      selection = []
+  let selection = []
       -- regions = [Region (posToOffset buffer' 7 7) (posToOffset buffer' 7 19) [Comment]]
       regions = highLight content
-      buffer = Buffer content (Cursor 0 0 0) selection regions False
+      buffer = Buffer content (Cursor 0 0 0) selection 0 regions False
       view = ViewState 0 0 (TS.width sz) 20 -- (TS.height sz)
   -- print $ highLight testContent
   -- print "Hello"
