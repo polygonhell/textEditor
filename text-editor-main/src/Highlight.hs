@@ -161,12 +161,14 @@ letters = lowerCase ++ upperCase
 numbers = "1234567890"
 alphaNum = letters ++ numbers
 identifierBodyChars = alphaNum ++ "'"
+keywords = ["where", "do", "let", "if", "then", "else", "case", "of", "instance", "class", "error"]
 
 
 wsOrCommentR :: SyntaxParser [Region]
 wsOrCommentR = F.fold <$> many (inlineCommentR <|> someSpaces) where 
   someSpaces = noregion (some (oneOf "\r\n "))
 
+-- Parameterized because we may Want to color differently based on context
 identifierR :: RegionStyle -> SyntaxParser [Region]
 identifierR rs = rList <$> region rs ident <*> wsOrCommentR where
   ident = oneOf lowerCase *> some (oneOf alphaNum)

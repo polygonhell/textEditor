@@ -10,6 +10,8 @@ import Debug.Trace
 import Text.Printf
 import Prelude as P
 
+-- TODO - UNDO
+
 data Cursor = Cursor { preferredCol :: Int
                      , line :: Int
                      , col :: Int
