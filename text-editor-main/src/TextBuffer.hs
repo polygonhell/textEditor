@@ -17,12 +17,7 @@ data Cursor = Cursor { preferredCol :: Int
                      , col :: Int
                      } deriving (Show)
 
-data RegionStyle = Normal 
-                 | Selected
-                 | Comment 
-                 | Number
-                 | StringStyle
-                 | RSNamed String deriving (Show, Eq, Ord)
+data RegionStyle = RS String deriving (Show, Eq, Ord)
 
 data Region = Region { startOffset :: Int
                      , endOffset :: Int
@@ -163,7 +158,7 @@ clearSelection :: Buffer -> Buffer
 clearSelection b@Buffer{..} = b{selection = []}
 
 startSelection :: Buffer -> Buffer
-startSelection b@Buffer{..} = b{selection = [Region cpos cpos [Selected]], initialSelectionOffset = cpos} where
+startSelection b@Buffer{..} = b{selection = [Region cpos cpos [RS "selected"]], initialSelectionOffset = cpos} where
   Cursor{..} = cursor
   cpos = posToOffset b line col
 
@@ -175,15 +170,15 @@ updateSelection b@Buffer{..} = b{selection = selection'} where
   selection' = P.map fn selection
   fn r@Region{..} = r{startOffset = o, endOffset = p, styles = s} where
     (o, p, s) = case cpos of
-      _ | cpos == startOffset -> (initialSelectionOffset, cpos, [Normal])
-      _ | cpos > startOffset  -> (initialSelectionOffset, cpos-1, [Selected])  
+      _ | cpos == startOffset -> (initialSelectionOffset, cpos, [])
+      _ | cpos > startOffset  -> (initialSelectionOffset, cpos-1, [RS "selected"])  
       -- Special case for reverse selection of EOL Character -- reverse selections are inclusive
-      _ | cpos == startOffset - 1 && col == lineLength line b - 1 -> (initialSelectionOffset-1, cpos, [Normal])
-      _                       -> (initialSelectionOffset- 1 , cpos, [Selected])
+      _ | cpos == startOffset - 1 && col == lineLength line b - 1 -> (initialSelectionOffset-1, cpos, [])
+      _                       -> (initialSelectionOffset- 1 , cpos, [RS "selected"])
      
 
 deleteSelection b@Buffer{..} | F.null selection = b 
-deleteSelection b@Buffer{..} | styles (P.head selection) == [Normal] = b{selection = []}
+deleteSelection b@Buffer{..} | P.null (styles (P.head selection)) = b{selection = []}
 deleteSelection b@Buffer{..} = dirty $ updateRegions minPos (minPos - maxPos - 1) b' where
   [s@Region{..}] = selection  
   Cursor{..} = cursor

@@ -8,6 +8,7 @@ import Data.Foldable
 import Data.Sequence as S
 import Data.List as L
 import Data.Map as M
+import Data.Maybe as M
 import Data.Text as T
 import Debug.Trace
 import System.IO
@@ -23,8 +24,10 @@ import Keys
 -- TODO this needs state for the following
 -- TODO only redraw changed lines
 
-styleMapping :: Map RegionStyle String
-styleMapping = M.fromList [(Normal, normal), (Selected, bgColor 12), (Comment, fgColor 220), (Number, fgColor 12), (StringStyle, fgColor 45)]
+styleMapping :: Map String String
+styleMapping = M.fromList [("keyword", fgColor 208), ("moduleName", fgColor 221), ("identifier", fgColor 47), ("infixOp", fgColor 47), ("selected", bgColor 12), ("comment", fgColor 242), ("number", fgColor 12), ("string", fgColor 45)]
+defaultPrefix = bgColor 220
+
 
 lastPosOnScreen :: ViewState -> Buffer -> Int
 lastPosOnScreen v@ViewState{..} b@Buffer{..} = lastLineEnd where
@@ -33,13 +36,13 @@ lastPosOnScreen v@ViewState{..} b@Buffer{..} = lastLineEnd where
   lastLineEnd = lastLineStart + lineLength endLine b 
 
 getSortedRegions :: Int -> ViewState -> Buffer -> [Region] -> [Region]
-getSortedRegions pos v b [] | pos < lastPosOnScreen v b = [Region pos (lastPosOnScreen v b) [Normal]]
+getSortedRegions pos v b [] | pos < lastPosOnScreen v b = [Region pos (lastPosOnScreen v b) []]
 getSortedRegions pos v b [] = []
 getSortedRegions pos v b _ | pos > lastPosOnScreen v b = []
 getSortedRegions pos v b (r@Region{..}:rs)  | pos < startOffset = rs' where
   maxPos = lastPosOnScreen v b
   rEnd = min maxPos (startOffset-1)
-  rs' = Region pos rEnd [Normal] : getSortedRegions startOffset v b (r:rs)
+  rs' = Region pos rEnd [] : getSortedRegions startOffset v b (r:rs)
 getSortedRegions pos v b (r@Region{..}:rs)  | pos >= startOffset = rs' where
   maxPos = lastPosOnScreen v b
   rEnd = min maxPos endOffset
@@ -89,7 +92,10 @@ getRegions v@ViewState{..} b@Buffer{..} = getSortedRegions initialPos v b regs w
 
 stylePrefix :: Region -> String
 stylePrefix Region{..} = prefix where 
-  styleStrings = L.map (styleMapping !) styles
+  styleNames = L.map (\x -> case x of
+    RS str -> str) styles
+  styleOptions = L.map (`M.lookup` styleMapping) styleNames
+  styleStrings =  L.map (fromMaybe defaultPrefix) styleOptions
   prefix = normal ++ L.concat styleStrings
 
 
