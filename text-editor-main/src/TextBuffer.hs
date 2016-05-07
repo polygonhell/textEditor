@@ -29,14 +29,17 @@ type Selection = Region
 type Line = Text
 type BufferContent = Seq Line
  
+
+type Undo = [Buffer -> Buffer]
+
 data Buffer = Buffer { content  :: BufferContent
                      , cursor  :: Cursor 
                      , selection :: [Selection]
                      , initialSelectionOffset :: Int
                      , regions :: [Region]
                      , contentChanged :: Bool
-                     } deriving (Show)
-
+                     , undoStack :: Undo
+                     }
 
 
 isFirstLine :: Buffer -> Bool
