@@ -208,6 +208,7 @@ readKeys = do
     "\ESC[H" -> Home
     "\x7f" -> Backspace  -- Delete key on OSX Keyboard
     "\n" -> CarriageReturn
+    ['\ESC', a] -> Alt a
     [a] | printable a -> Alpha a
     [a] | a <= '\26' -> Ctrl $ toEnum ((fromEnum 'a' :: Int) + (fromEnum a - 1))
     a -> trace (toPos 36 0 ++ "[ " ++ printKeys a ++ " ]") UnknownKey

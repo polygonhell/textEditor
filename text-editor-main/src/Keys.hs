@@ -10,5 +10,6 @@ data Keys = CursorRight
           | Home
           | End
           | Ctrl Char
+          | Alt Char
           | UnknownKey
 

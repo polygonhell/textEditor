@@ -10,12 +10,23 @@ import Debug.Trace
 import qualified System.Console.Terminal.Size  as TS
 import System.Environment
 import Prelude as P
+import System.Posix.Signals
 
 import Keys
 import TextBuffer
 import TTYRender
 import View
 import Highlight
+
+-- TODO - Cut and Paste
+-- TODO - Window Manager
+-- TODO - Status Line
+-- TODO - Custom key bindings
+-- TODO - Deal with Empty files
+-- TODO - Save
+
+
+
 
 
 loadFile :: String -> IO BufferContent
@@ -37,8 +48,9 @@ updateBuffer k b@Buffer{..} = b' where
     CursorRight -> cursorRight b
     End -> endOfLine b
     Home -> startOfLine b
-    Ctrl 'a' -> startSelection b
-    Ctrl 'b' -> undo b
+    Alt 'a' -> startSelection b
+    Alt _ -> undo b
+    -- Ctrl 'b' -> undo b
     _ -> b
 
 loop :: Buffer -> ViewState -> IO()
@@ -59,6 +71,10 @@ testContent = S.fromList [pack " -- This is a \"test\"", pack "\"Not a comment\"
 main :: IO ()
 main = do
   env <- getEnvironment
+  -- Prevent Ctrl-Z from suspending the app
+  let signalSet = addSignal sigTSTP emptySignalSet
+  blockSignals signalSet
+
   Just sz <- TS.size
   print env
   [inputFile] <- getArgs
