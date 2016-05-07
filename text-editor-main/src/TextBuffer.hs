@@ -82,6 +82,10 @@ endOfLine :: Buffer -> Buffer
 endOfLine b@Buffer{..} = b{cursor = cursor{col = pos, preferredCol = pos}} where
   pos = curLineLength b
 
+toOffset :: Int -> Buffer -> Buffer
+toOffset offset b@Buffer{..} = b{cursor = cursor{col = col, preferredCol = col, line = line}} where
+  (line, col) = offsetToPos b offset
+
 -- Cursor Motion
 cursorLeft :: Buffer -> Buffer
 cursorLeft b@Buffer{..} | col == 0 && line /= 0 = b' where 
@@ -117,16 +121,63 @@ cursorDown b@Buffer{..} = b{cursor = cursor'} where
   newCol = min (lineLength newLine b) preferredCol
   cursor' = cursor{line = newLine, col = newCol}
 
-insertCharacter :: Char -> Buffer -> Buffer
-insertCharacter c b@Buffer{..} = dirty $ updateRegions cpos 1 (cursorRight b{content = content'}) where
+
+insertCharacterAt :: Char -> Int -> Buffer -> Buffer
+insertCharacterAt c offset b = b' where  
+  b' = insertCharacter c $ toOffset offset b
+
+insertString :: Text -> Buffer -> Buffer
+insertString s b = T.foldl fn b s where
+  fn b c = insertCharacter c b
+
+
+insertStrings :: [Text] -> Buffer -> Buffer
+insertStrings [] b = b
+insertStrings [s] b = insertString s b
+insertStrings (s:ss) b = b' where 
+  b' = insertStrings ss $ breakLine $ insertString s b
+
+insertTextsAt :: [Text] -> Int -> Buffer -> Buffer
+insertTextsAt ss offset b = b' where
+  b' = insertStrings ss $ toOffset offset b
+
+deleteCharacterAt :: Int -> Buffer -> Buffer
+deleteCharacterAt offset b = b' where 
+  b'= deleteCharacter $ toOffset offset b
+
+unbreakLineAt :: Int -> Buffer -> Buffer
+unbreakLineAt = deleteCharacterAt
+
+breakLineAt :: Int -> Buffer -> Buffer
+breakLineAt offset b = b' where 
+  b'= breakLine $ toOffset offset b
+
+splitAtCursor :: Buffer -> (Int, Text, Text)
+splitAtCursor b@Buffer{..} = (cpos, l, r) where  
   Cursor{..} = cursor
   cpos = posToOffset b line col
   (l, r) = T.splitAt col $ S.index content line
+
+insertCharacter :: Char -> Buffer -> Buffer
+insertCharacter c b@Buffer{..} = dirty $ cursorRight b{content = content', undoStack = undo'} where
+  Cursor{..} = cursor
+  (cpos, l, r) = splitAtCursor b
   ln' = l `append` (c `cons` r)
   content' = update line ln' content
+  undo' = deleteCharacterAt (cpos+1) : undoStack
+
+deleteCharacter :: Buffer -> Buffer
+deleteCharacter b@Buffer{..} | col cursor == 0 && not (isFirstLine b) = unbreakLine b
+deleteCharacter b@Buffer{..} | col cursor == 0 = b
+deleteCharacter b@Buffer{..} = dirty $ cursorLeft b{ content = content', undoStack = undo'} where
+  Cursor{..} = cursor
+  (cpos, l, r) = splitAtCursor b
+  ln' = T.take (T.length l - 1) l `append` r
+  content' = update line ln' content
+  undo' = insertCharacterAt (T.last l) (cpos-1) : undoStack
 
 breakLine :: Buffer -> Buffer
-breakLine b@Buffer{..} = dirty $ updateRegions cpos 1 b{content = content', cursor = cursor'} where
+breakLine b@Buffer{..} = dirty $ b{content = content', cursor = cursor', undoStack = undo'} where
   Cursor{..} = cursor
   cpos = posToOffset b line col
   (l, r) = T.splitAt col ln
@@ -134,9 +185,10 @@ breakLine b@Buffer{..} = dirty $ updateRegions cpos 1 b{content = content', curs
   ln :< eResid = viewl e
   content' = (s |> l |> r) >< eResid
   cursor' = cursor{line = line + 1, col = 0, preferredCol = 0}
+  undo' = unbreakLineAt (cpos+1) : undoStack
 
 unbreakLine :: Buffer -> Buffer
-unbreakLine b@Buffer{..} = dirty $ updateRegions (cpos-1) (-1) b{content = content', cursor = cursor'} where
+unbreakLine b@Buffer{..} = dirty b{content = content', cursor = cursor', undoStack = undo'} where
   Cursor{..} = cursor
   cpos = posToOffset b line col
   (s, e) = S.splitAt line content
@@ -144,17 +196,14 @@ unbreakLine b@Buffer{..} = dirty $ updateRegions (cpos-1) (-1) b{content = conte
   (ln2 :< e') = viewl e
   content' = (s' |> (ln1 `append` ln2)) >< e'
   cursor' = cursor {col = T.length ln1, line = line - 1, preferredCol = T.length ln1}
+  undo' = breakLineAt (cpos-1) : undoStack
 
   
-deleteCharacter :: Buffer -> Buffer
-deleteCharacter b@Buffer{..} | col cursor == 0 && not (isFirstLine b) = unbreakLine b
-deleteCharacter b@Buffer{..} | col cursor == 0 = b
-deleteCharacter b@Buffer{..} = dirty $ updateRegions (cpos-1) (-1) (cursorLeft b{ content = content' }) where
-  Cursor{..} = cursor
-  cpos = posToOffset b line col
-  (l, r) = T.splitAt col $ S.index content line
-  ln' = T.take (T.length l - 1) l `append` r
-  content' = update line ln' content
+
+undo :: Buffer -> Buffer
+undo b@Buffer{..} | P.null undoStack = b
+undo b@Buffer{..} = b' {undoStack = P.tail undoStack} where
+  b' = P.head undoStack b
 
 
 clearSelection :: Buffer -> Buffer
@@ -182,7 +231,7 @@ updateSelection b@Buffer{..} = b{selection = selection'} where
 
 deleteSelection b@Buffer{..} | F.null selection = b 
 deleteSelection b@Buffer{..} | P.null (styles (P.head selection)) = b{selection = []}
-deleteSelection b@Buffer{..} = dirty $ updateRegions minPos (minPos - maxPos - 1) b' where
+deleteSelection b@Buffer{..} = dirty b' where
   [s@Region{..}] = selection  
   Cursor{..} = cursor
   minPos = min startOffset endOffset
@@ -195,27 +244,18 @@ deleteSelection b@Buffer{..} = dirty $ updateRegions minPos (minPos - maxPos - 1
   (_ :> ll) = viewr selLine
   lineOut = T.take minCol fl `T.append` T.drop (maxCol+1) ll
   cursor' = cursor{line = minLine, col = minCol, preferredCol = minCol}
-  b' = b{selection = [], content = (before |> lineOut) >< after, cursor = cursor'}
 
-updateRegion :: Int -> Int -> Region -> [Region]
-updateRegion offset added r@Region{..} = r' where
-  rStart = min startOffset endOffset
-  rEnd = max startOffset endOffset
-  r' = case offset of 
-    _ | offset > rEnd -> [r]
-    _ | offset <= rStart && added >= 0 -> [r{startOffset = rStart + added, endOffset = rEnd + added}]
-    _ | added >= 0 -> [r{startOffset = rStart, endOffset = rEnd + added}]
-    _ | offset - added <= rStart -> [r{startOffset = rStart + added, endOffset = rEnd + added}]
-    _ | offset <= rStart && offset - added > rEnd -> []
-    -- Must cover part of it
-    _ | offset < rStart -> [r{startOffset = offset, endOffset = rEnd + added}]
-    _ | offset - added -1  <= rEnd -> [r{startOffset = rStart, endOffset = rEnd + added}]
-    _ -> [r{startOffset = rStart + added, endOffset = offset}]
-    
+  linesDeleted = 
+    if minLine == maxLine 
+      then 
+        [T.take (maxCol - minCol + 1) $ T.drop minCol fl]
+      else 
+        T.drop minCol fl : P.take (S.length selLine - 2) (P.tail (F.toList selLine)) ++ [T.take (maxCol+1) ll]
 
-updateRegions :: Int -> Int -> Buffer -> Buffer
-updateRegions offset added b@Buffer{..} = b{regions = r'} where
-  r' = foldMap (updateRegion offset added) regions
+
+  undo' =  insertTextsAt linesDeleted minPos : undoStack
+  b' = b{selection = [], content = (before |> lineOut) >< after, cursor = cursor', undoStack = undo'}
+
 
 
 dirty :: Buffer -> Buffer

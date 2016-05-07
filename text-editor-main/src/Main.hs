@@ -38,6 +38,7 @@ updateBuffer k b@Buffer{..} = b' where
     End -> endOfLine b
     Home -> startOfLine b
     Ctrl 'a' -> startSelection b
+    Ctrl 'b' -> undo b
     _ -> b
 
 loop :: Buffer -> ViewState -> IO()
