@@ -50,7 +50,7 @@ updateBuffer k b@Buffer{..} = b' where
     Home -> startOfLine b
     Alt 'a' -> startSelection b
     Alt _ -> undo b
-    -- Ctrl 'b' -> undo b
+    Ctrl 'z' -> undo b
     _ -> b
 
 loop :: Buffer -> ViewState -> IO()
