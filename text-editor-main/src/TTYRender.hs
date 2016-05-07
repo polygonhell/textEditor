@@ -204,7 +204,9 @@ readKeys = do
     "\ESC[B" -> CursorDown
     "\ESC[C" -> CursorRight
     "\ESC[D" -> CursorLeft
-    "\ESC[F" -> End
+    "\ESC[F" -> End  -- Mac/Windows terminals
+    "\ESCOF" -> End  -- Gnome Terminal
+    "\ESCOH" -> Home
     "\ESC[H" -> Home
     "\x7f" -> Backspace  -- Delete key on OSX Keyboard
     "\n" -> CarriageReturn
