@@ -1,3 +1,5 @@
 # textEditor
 
-A  simple text editor in haskell
+Just a simple text editor in haskell
+
+Currently not functional
