@@ -24,6 +24,8 @@ data Region = Region { startOffset :: Int
 
 type Selection = Region
 
+type CutBuffer = [Text]
+
 type Line = Text
 type BufferContent = Seq Line
  
@@ -129,13 +131,13 @@ insertString s b = T.foldl fn b s where
   fn b c = insertCharacter c b
 
 
-insertStrings :: [Text] -> Buffer -> Buffer
+insertStrings :: CutBuffer -> Buffer -> Buffer
 insertStrings [] b = b
 insertStrings [s] b = insertString s b
 insertStrings (s:ss) b = b' where 
   b' = insertStrings ss $ breakLine $ insertString s b
 
-insertTextsAt :: [Text] -> Int -> Buffer -> Buffer
+insertTextsAt :: CutBuffer -> Int -> Buffer -> Buffer
 insertTextsAt ss offset b = b' where
   b' = insertStrings ss $ toOffset offset b
 
@@ -213,6 +215,7 @@ startSelection b@Buffer{..} = b{selection = [Region cpos cpos [RS "selected"]], 
   cpos = posToOffset b line col
 
 
+updateSelection :: Buffer -> Buffer
 updateSelection b@Buffer{..} | F.null selection = b  
 updateSelection b@Buffer{..} = b{selection = selection'} where  
   Cursor{..} = cursor 
@@ -227,9 +230,12 @@ updateSelection b@Buffer{..} = b{selection = selection'} where
       _                       -> (initialSelectionOffset- 1 , cpos, [RS "selected"])
      
 
-deleteSelection b@Buffer{..} | F.null selection = b 
-deleteSelection b@Buffer{..} | P.null (styles (P.head selection)) = b{selection = []}
-deleteSelection b@Buffer{..} = dirty b' where
+
+
+cutSelection :: Buffer -> (Buffer, CutBuffer)
+cutSelection b@Buffer{..} | F.null selection = (b, []) 
+cutSelection b@Buffer{..} | P.null (styles (P.head selection)) = (b{selection = []}, [])
+cutSelection b@Buffer{..} = (dirty b', linesDeleted) where
   [s@Region{..}] = selection  
   Cursor{..} = cursor
   minPos = min startOffset endOffset
@@ -254,6 +260,16 @@ deleteSelection b@Buffer{..} = dirty b' where
   undo' =  insertTextsAt linesDeleted minPos : undoStack
   b' = b{selection = [], content = (before |> lineOut) >< after, cursor = cursor', undoStack = undo'}
 
+paste :: CutBuffer -> Buffer -> Buffer
+paste cutLines b@Buffer{..} = dirty b' where
+  Cursor{..} = cursor 
+  offset = posToOffset b line col
+  b' = insertTextsAt cutLines offset b
+  -- TODO undo
+  -- undo' = deleteTextAt
+
+deleteSelection :: Buffer -> Buffer
+deleteSelection b = fst (cutSelection b)
 
 
 dirty :: Buffer -> Buffer

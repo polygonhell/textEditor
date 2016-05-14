@@ -17,6 +17,7 @@ import TextBuffer
 import TTYRender
 import View
 import Highlight
+import qualified TextEditor as TE
 
 -- TODO - Cut and Paste
 -- TODO - Window Manager
