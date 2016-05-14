@@ -1,13 +1,13 @@
 {-# LANGUAGE RecordWildCards #-}
 module TextBuffer where
 
-import Data.Sequence as S
-import Data.Text as T
+import qualified Data.Sequence as S
+import qualified Data.Text as T
 import Data.Foldable as F
 import Data.Char
-import Data.Maybe
-import Debug.Trace
-import Text.Printf
+-- import Data.Maybe
+-- import Debug.Trace
+-- import Text.Printf
 import Prelude as P
 
 data Cursor = Cursor { preferredCol :: Int
@@ -24,10 +24,10 @@ data Region = Region { startOffset :: Int
 
 type Selection = Region
 
-type CutBuffer = [Text]
+type CutBuffer = [T.Text]
 
-type Line = Text
-type BufferContent = Seq Line
+type Line = T.Text
+type BufferContent = S.Seq Line
  
 
 type Undo = [Buffer -> Buffer]
@@ -58,13 +58,13 @@ curLineLength b@Buffer{..} = lineLength (line cursor) b
 offsetToPos :: Buffer -> Int -> (Int, Int)
 offsetToPos b offset | offset <= lineLength 0 b = (0, offset)
 offsetToPos b@Buffer{..} offset = out  where 
-  length = lineLength 0 b
-  (line, off) = offsetToPos b{content = S.drop 1 content} (offset - (length + 1))
+  len = lineLength 0 b
+  (line, off) = offsetToPos b{content = S.drop 1 content} (offset - (len + 1))
   out = (line + 1, off)
 
 
 posToOffset :: Buffer -> Int -> Int -> Int
-posToOffset b@Buffer{..} line col = lineOffset + col where
+posToOffset Buffer{..} line col = lineOffset + col where
   bSlice = S.take line content
   lineOffset = F.foldl fn 0 bSlice
   fn x y = x + T.length y + 1
@@ -126,9 +126,9 @@ insertCharacterAt :: Char -> Int -> Buffer -> Buffer
 insertCharacterAt c offset b = b' where  
   b' = insertCharacter c $ toOffset offset b
 
-insertString :: Text -> Buffer -> Buffer
+insertString :: T.Text -> Buffer -> Buffer
 insertString s b = T.foldl fn b s where
-  fn b c = insertCharacter c b
+  fn d c = insertCharacter c d
 
 
 insertStrings :: CutBuffer -> Buffer -> Buffer
@@ -152,7 +152,7 @@ breakLineAt :: Int -> Buffer -> Buffer
 breakLineAt offset b = b' where 
   b'= breakLine $ toOffset offset b
 
-splitAtCursor :: Buffer -> (Int, Text, Text)
+splitAtCursor :: Buffer -> (Int, T.Text, T.Text)
 splitAtCursor b@Buffer{..} = (cpos, l, r) where  
   Cursor{..} = cursor
   cpos = posToOffset b line col
@@ -162,8 +162,8 @@ insertCharacter :: Char -> Buffer -> Buffer
 insertCharacter c b@Buffer{..} = dirty $ cursorRight b{content = content', undoStack = undo'} where
   Cursor{..} = cursor
   (cpos, l, r) = splitAtCursor b
-  ln' = l `append` (c `cons` r)
-  content' = update line ln' content
+  ln' = l `T.append` (c `T.cons` r)
+  content' = S.update line ln' content
   undo' = deleteCharacterAt (cpos+1) : undoStack
 
 deleteCharacter :: Buffer -> Buffer
@@ -172,8 +172,8 @@ deleteCharacter b@Buffer{..} | col cursor == 0 = b
 deleteCharacter b@Buffer{..} = dirty $ cursorLeft b{ content = content', undoStack = undo'} where
   Cursor{..} = cursor
   (cpos, l, r) = splitAtCursor b
-  ln' = T.take (T.length l - 1) l `append` r
-  content' = update line ln' content
+  ln' = T.take (T.length l - 1) l `T.append` r
+  content' = S.update line ln' content
   undo' = insertCharacterAt (T.last l) (cpos-1) : undoStack
 
 breakLine :: Buffer -> Buffer
@@ -182,8 +182,8 @@ breakLine b@Buffer{..} = dirty $ b{content = content', cursor = cursor', undoSta
   cpos = posToOffset b line col
   (l, r) = T.splitAt col ln
   (s, e) = S.splitAt line content
-  ln :< eResid = viewl e
-  content' = (s |> l |> r) >< eResid
+  ln S.:< eResid = S.viewl e
+  content' = (s S.|> l S.|> r) S.>< eResid
   cursor' = cursor{line = line + 1, col = 0, preferredCol = 0}
   undo' = unbreakLineAt (cpos+1) : undoStack
 
@@ -192,9 +192,9 @@ unbreakLine b@Buffer{..} = dirty b{content = content', cursor = cursor', undoSta
   Cursor{..} = cursor
   cpos = posToOffset b line col
   (s, e) = S.splitAt line content
-  (s' :> ln1) = viewr s
-  (ln2 :< e') = viewl e
-  content' = (s' |> (ln1 `append` ln2)) >< e'
+  (s' S.:> ln1) = S.viewr s
+  (ln2 S.:< e') = S.viewl e
+  content' = (s' S.|> (ln1 `T.append` ln2)) S.>< e'
   cursor' = cursor {col = T.length ln1, line = line - 1, preferredCol = T.length ln1}
   undo' = breakLineAt (cpos-1) : undoStack
 
@@ -236,16 +236,16 @@ cutSelection :: Buffer -> (Buffer, CutBuffer)
 cutSelection b@Buffer{..} | F.null selection = (b, []) 
 cutSelection b@Buffer{..} | P.null (styles (P.head selection)) = (b{selection = []}, [])
 cutSelection b@Buffer{..} = (dirty b', linesDeleted) where
-  [s@Region{..}] = selection  
+  [Region{..}] = selection  
   Cursor{..} = cursor
   minPos = min startOffset endOffset
   maxPos = max startOffset endOffset
   (minLine, minCol) = offsetToPos b minPos 
   (maxLine, maxCol) = offsetToPos b maxPos
-  (before, rem) = S.splitAt minLine content
-  (selLine, after) = S.splitAt (maxLine - minLine + 1) rem
-  (fl :< _) = viewl selLine
-  (_ :> ll) = viewr selLine
+  (before, remainder) = S.splitAt minLine content
+  (selLine, after) = S.splitAt (maxLine - minLine + 1) remainder
+  (fl S.:< _) = S.viewl selLine
+  (_ S.:> ll) = S.viewr selLine
   lineOut = T.take minCol fl `T.append` T.drop (maxCol+1) ll
   cursor' = cursor{line = minLine, col = minCol, preferredCol = minCol}
 
@@ -258,7 +258,7 @@ cutSelection b@Buffer{..} = (dirty b', linesDeleted) where
 
 
   undo' =  insertTextsAt linesDeleted minPos : undoStack
-  b' = b{selection = [], content = (before |> lineOut) >< after, cursor = cursor', undoStack = undo'}
+  b' = b{selection = [], content = (before S.|> lineOut) S.>< after, cursor = cursor', undoStack = undo'}
 
 paste :: CutBuffer -> Buffer -> Buffer
 paste cutLines b@Buffer{..} = dirty b' where
