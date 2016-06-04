@@ -1,7 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 module TTYRender where
 
-import Control.Concurrent
 import Control.Monad
 import Data.Char
 import Data.Foldable
@@ -26,27 +25,29 @@ import Keys
 
 styleMapping :: Map String String
 styleMapping = M.fromList [("keyword", fgColor 208), ("moduleName", fgColor 221), ("identifier", fgColor 47), ("infixOp", fgColor 47), ("selected", bgColor 12), ("comment", fgColor 242), ("number", fgColor 12), ("string", fgColor 45)]
+defaultPrefix :: String
 defaultPrefix = bgColor 220
 
 
 lastPosOnScreen :: ViewState -> Buffer -> Int
-lastPosOnScreen v@ViewState{..} b@Buffer{..} = lastLineEnd where
+lastPosOnScreen ViewState{..} b@Buffer{..} = lastLineEnd where
   endLine = top + height-1
   lastLineStart = posToOffset b endLine 0
   lastLineEnd = lastLineStart + lineLength endLine b 
 
 getSortedRegions :: Int -> ViewState -> Buffer -> [Region] -> [Region]
 getSortedRegions pos v b [] | pos < lastPosOnScreen v b = [Region pos (lastPosOnScreen v b) []]
-getSortedRegions pos v b [] = []
+getSortedRegions _ _ _ [] = []
 getSortedRegions pos v b _ | pos > lastPosOnScreen v b = []
 getSortedRegions pos v b (r@Region{..}:rs)  | pos < startOffset = rs' where
   maxPos = lastPosOnScreen v b
   rEnd = min maxPos (startOffset-1)
   rs' = Region pos rEnd [] : getSortedRegions startOffset v b (r:rs)
-getSortedRegions pos v b (r@Region{..}:rs)  | pos >= startOffset = rs' where
+getSortedRegions pos v b (Region{..}:rs)  | pos >= startOffset = rs' where
   maxPos = lastPosOnScreen v b
   rEnd = min maxPos endOffset
   rs' = Region pos rEnd styles : getSortedRegions (endOffset+1) v b rs
+getSortedRegions  _ _ _ _ = error "Uncaught case"
 
 -- Assumes regions are sorted and offsets are ordered
 mergeSortedRegions :: [Region] -> [Region] -> [Region] 
@@ -103,7 +104,7 @@ stylePrefix Region{..} = prefix where
 drawLine :: Int -> Line -> [Region] -> IO [Region]
 drawLine _ _ [] = return []
 drawLine _ line rs | line == T.empty = return rs 
-drawLine o l (r@Region{..}:rs) | o > endOffset = drawLine o l rs  
+drawLine o l (Region{..}:rs) | o > endOffset = drawLine o l rs  
 --drawLine o l (r@Region{..}:rs) | o < startOffset = drawLine o l rs  
 drawLine o line (r@Region{..}:rs) | o + T.length line < endOffset = do
   putStr $ stylePrefix r
@@ -117,24 +118,24 @@ drawLine o l (r@Region{..}:rs) = do
 
    
 drawLines :: ViewState -> Int -> Buffer -> [Region] -> IO ()
-drawLines v@ViewState{..} lNum _ _ | lNum == height = return ()
+drawLines ViewState{..} lNum _ _ | lNum == height = return ()
 drawLines v@ViewState{..} lNum b@Buffer{..} rs = do
-  let l = lNum + top
+  let l = lNum + bTop
       h = if l < S.length content then S.index content l else T.empty 
-      offset = posToOffset b l 0 + left
-      lne = T.take width $ T.drop left h
+      offset = posToOffset b l 0 + bLeft
+      lne = T.take width $ T.drop bLeft h
       padding = L.replicate (width - T.length lne) ' '
 
   rs' <- drawLine offset lne rs
   -- Need to clear the state if a new regions starts on the unprinted Char at the end of the line
   let nextRs = if L.null rs' then Region 0 0 [] else L.head rs'
-      (nRsLine, nRsCol) = offsetToPos b $ startOffset nextRs
+      (nRsLine, _) = offsetToPos b $ startOffset nextRs
   when (l == nRsLine) $ putStr (stylePrefix nextRs)
 
   -- putStr $ "**" ++ show nRsLine ++ " " ++ show nRsCol ++ " " ++ show (T.length h) -- ++ show nextRs
   putStr padding
 
-  when (lNum /= height - 1) $ putStr "\n"
+  when (lNum /= height - 1) $ putStr $ toPos (lNum+top+1) left
   drawLines v (lNum+1) b rs'
 
 cls :: String
@@ -198,7 +199,7 @@ printKeys = foldMap printKey
 
 readKeys :: IO Keys
 readKeys = do
-  (str, bytes) <- fdRead stdInput 10 
+  (str, _) <- fdRead stdInput 10 
   return $ case str of
     "\ESC[A" -> CursorUp
     "\ESC[B" -> CursorDown
@@ -237,15 +238,15 @@ draw v@ViewState{..} b@Buffer{..} = do
   --let buffSlice = S.take height $ S.drop top content
   -- putStr cls
   -- putStr $ setTopAndBottom 0 5
-  let regions = getRegions v b
+  -- let regions = getRegions v b
   putStr resetTopAndBottom
   putStr hideCursor
-  putStr $ toPos 0 0
+  putStr $ toPos top left
   drawLines v 0 b regions
 
   let Cursor {..} = cursor
-      cursorX = col - left + 1
-      cursorY = line - top + 1
+      cursorX = col - bLeft + left
+      cursorY = line - bTop + top
       dirty = if contentChanged then "*" else " "
 
   

@@ -31,8 +31,9 @@ instance Show EditBuffer where
   show _ = "EditBuffer"
 
 instance LayoutClass EditBuffer where
-  doLayout (Rect _ _ w h) (EditBuffer row col b) = do
-    let viewState = ViewState row col w h
+  doLayout (Rect t l w h) (EditBuffer row col b) = do
+    -- Layout is 0 based, TTY renderer is 1 based
+    let viewState = ViewState row col (t+1) (l+1) w h
     draw viewState b
   layoutSize _ = 1
   updateLayout _ 0 n = n
