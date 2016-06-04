@@ -3,61 +3,108 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ExistentialQuantification #-}
-
+{-# LANGUAGE RecordWildCards #-}
+-- {-# LANGUAGE DuplicateRecordFields #-}
 
 module TextEditor where 
 
 
--- import qualified System.Console.Terminal.Size  as TS
+import qualified System.Console.Terminal.Size  as TS
 -- import qualified Data.Sequence as S
 import qualified Data.Map as M
--- import Data.Traversable
-import TextBuffer
+import System.Posix.Signals
 
+import TextBuffer
+import Prelude as P
+import View
+import Layout
+import Highlight
+import Keys
+import TTYRender
 
 data BufferManager = BufferManager {textBuffers :: M.Map String Buffer}
 
-data SplitDirection = Horizontal
+-- top left buffer offset
+data EditBuffer = EditBuffer Int Int Buffer
+
+instance Show EditBuffer where
+  show _ = "EditBuffer"
+
+instance LayoutClass EditBuffer where
+  doLayout (Rect _ _ w h) (EditBuffer row col b) = do
+    let viewState = ViewState row col w h
+    draw viewState b
+  layoutSize _ = 1
+  updateLayout _ 0 n = n
+  updateLayout a _ _ = Layout a
+
+
+data AppState = AppState { activeLayoutIndex :: Int 
+                         , activeBuffer :: EditBuffer
+                         , layout :: Root
+                         , window :: Rect
+                         , bufferManager :: BufferManager 
+                         } 
+
+
+updateBuffer :: Keys -> Buffer -> Buffer
+updateBuffer k b@Buffer{..} = b' where
+   b' = case k of 
+    Alpha x -> insertCharacter x b
+    Backspace | P.null selection -> deleteCharacter b
+    Backspace -> deleteSelection b
+    CarriageReturn -> breakLine b
+    CursorUp -> cursorUp b
+    CursorDown -> cursorDown b
+    CursorLeft -> cursorLeft b
+    CursorRight -> cursorRight b
+    End -> endOfLine b
+    Home -> startOfLine b
+    Alt 'a' -> startSelection b
+    Alt _ -> undo b
+    Ctrl 'z' -> undo b
+    _ -> b
+
+
+scrollView :: EditBuffer -> EditBuffer
+scrollView a = a
+
+loop :: AppState -> IO()
+loop as@AppState{..} = do 
+  key <- readKeys
+  let (EditBuffer row col b) = activeBuffer
+      b'' = updateSelection $ updateBuffer key b{contentChanged = False}
+      dirty = contentChanged b''
+      b' = if dirty then  b''{regions  =  highLight (content b'')}  else b'' -- Still too often but better
+      eb' = scrollView $ EditBuffer row col b'
+  -- Update the buffer ref in the layout
+      layout' = updateRoot layout activeLayoutIndex (Layout eb')
+
+      as' = as{activeBuffer = eb', layout = layout'}
+  -- P.putStr (toPos 30 0 ++  show (selection b'))
+  layoutRoot layout'
+  loop as'
 
 
 
-data Layout a where
-  Layout :: (LayoutClass a) =>  a -> Layout a
 
--- data Layout a = forall l. (LayoutClass l a) => Layout (l a)
+init :: [(String, Buffer)] -> IO()
+init buffers = do
+  -- env <- getEnvironment
+  -- Prevent Ctrl-Z from suspending the app
+  let signalSet = addSignal sigTSTP emptySignalSet
+  blockSignals signalSet
+  initTTY
 
-class LayoutClass a where
-  doLayout :: Rect -> a -> IO () 
+  Just sz <- TS.size
 
-
-
--- top left width height 
-data Rect  = Rect Int Int Int Int
-
-
-
-
-data Empty = Empty
-
-data Root where
-  Root ::(LayoutClass a) => Rect -> a -> Root
-
-data HSplit where
-  HSplit :: (LayoutClass a, LayoutClass b) => Int -> a -> b -> HSplit 
+  let bufferManager = BufferManager (M.fromList buffers)
+      buffer = snd $ head buffers
+      window = Rect 0 0 (TS.width sz) 25
+      layout = Root window $ Layout (HSplit 20 (Layout (EditBuffer 0 0 buffer)) (Layout Empty))
+      as = AppState 1 (EditBuffer 0 0 buffer) layout window bufferManager
+  loop as
+  putStrLn "Hello"
 
 
-instance LayoutClass Empty where
-  doLayout _ _ = putStr "Empty"
 
-instance LayoutClass HSplit where
-  doLayout r (HSplit _ a b) = do 
-    doLayout r a
-    doLayout r b
-    putStr "Empty"
-
-
-test :: Root
-test = Root (Rect 0 0 20 20) (HSplit 5 Empty Empty)
-
-layout :: Root -> IO()
-layout (Root r lo) = doLayout r lo

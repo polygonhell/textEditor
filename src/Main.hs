@@ -18,6 +18,7 @@ import TTYRender
 import View
 import Highlight
 import qualified TextEditor as TE
+import qualified Layout as L
 
 -- TODO - Cut and Paste
 -- TODO - Window Manager
@@ -60,7 +61,7 @@ loop b v = do
   let b'' = updateSelection $ updateBuffer key b{contentChanged = False}
       dirty = contentChanged b''
       b' = if dirty then  b''{regions  =  highLight (content b'')}  else b'' -- Still too often but better
-      v' = scrollView b' v
+      v' = scrollView2 b' v
   P.putStr (toPos 30 0 ++  show (selection b'))
   draw v' b'
   loop b' v'
@@ -88,4 +89,5 @@ main = do
   -- print $ highLight testContent
   -- print "Hello"
   initTTY
+  TE.init [("buffer", buffer)]
   loop buffer view
