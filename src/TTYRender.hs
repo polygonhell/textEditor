@@ -11,7 +11,7 @@ import Data.Maybe as M
 import Data.Text as T
 import Debug.Trace
 import System.IO
-import System.Posix.IO (fdRead, stdInput, stdOutput)
+import System.Posix.IO (fdRead, stdInput)
 import System.Posix.Terminal
 import Text.Printf
 import Prelude as P
@@ -102,7 +102,10 @@ stylePrefix Region{..} = prefix where
 
 
 drawLine :: Int -> Line -> [Region] -> IO [Region]
-drawLine _ _ [] = return []
+drawLine _ l [] = do 
+  putStr normal
+  putStr $ unpack l 
+  return []
 drawLine _ line rs | line == T.empty = return rs 
 drawLine o l (Region{..}:rs) | o > endOffset = drawLine o l rs  
 --drawLine o l (r@Region{..}:rs) | o < startOffset = drawLine o l rs  
@@ -247,11 +250,11 @@ draw v@ViewState{..} b@Buffer{..} = do
   let Cursor {..} = cursor
       cursorX = col - bLeft + left
       cursorY = line - bTop + top
-      dirty = if contentChanged then "*" else " "
+      drty = if contentChanged then "*" else " "
 
   
   -- putStr $ toPos 32 0 ++ show (getRegions v b) ++ "               "
-  putStr $ toPos 40 0 ++ printf "%sLine: %-3d Col: %-3d (%d)" dirty line col (posToOffset b line col)
+  putStr $ toPos 52 0 ++ printf "%sLine: %-3d Col: %-3d (%d) -- %s   " drty line col (posToOffset b line col) (show v)
   putStr $ toPos cursorY cursorX
   putStr showCursor
   hFlush stdout

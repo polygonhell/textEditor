@@ -116,7 +116,7 @@ init buffers = do
 
   let bufferManager = BufferManager (M.fromList buffers)
       buffer = snd $ head buffers
-      window = Rect 0 0 (TS.width sz) 30
+      window = Rect 0 0 (TS.width sz) 50
       layout = Root window $ Layout (HSplit 14 (Layout (EditBuffer 0 0 buffer)) (Layout (EditBuffer 0 0 buffer)))
       as = AppState 2 layout bufferManager
 
