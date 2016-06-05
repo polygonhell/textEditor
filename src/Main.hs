@@ -37,35 +37,6 @@ loadFile fname = do
   return $ fromList $ T.lines text
 
 
-updateBuffer :: Keys -> Buffer -> Buffer
-updateBuffer k b@Buffer{..} = b' where
-   b' = case k of 
-    Alpha x -> insertCharacter x b
-    Backspace | P.null selection -> deleteCharacter b
-    Backspace -> deleteSelection b
-    CarriageReturn -> breakLine b
-    CursorUp -> cursorUp b
-    CursorDown -> cursorDown b
-    CursorLeft -> cursorLeft b
-    CursorRight -> cursorRight b
-    End -> endOfLine b
-    Home -> startOfLine b
-    Alt 'a' -> startSelection b
-    Alt _ -> undo b
-    Ctrl 'z' -> undo b
-    _ -> b
-
-loop :: Buffer -> ViewState -> IO()
-loop b v = do 
-  key <- readKeys
-  let b'' = updateSelection $ updateBuffer key b{contentChanged = False}
-      dirty = contentChanged b''
-      b' = if dirty then  b''{regions  =  highLight (content b'')}  else b'' -- Still too often but better
-      v' = scrollView2 b' v
-  P.putStr (toPos 30 0 ++  show (selection b'))
-  draw v' b'
-  loop b' v'
-
 
 testContent :: BufferContent
 testContent = S.fromList [pack " -- This is a \"test\"", pack "\"Not a comment\"", pack "  -- This is a test "]
@@ -90,4 +61,4 @@ main = do
   -- print "Hello"
   initTTY
   TE.init [("buffer", buffer)]
-  loop buffer view
+
